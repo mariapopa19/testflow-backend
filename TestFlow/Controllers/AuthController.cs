@@ -97,4 +97,20 @@ public class AuthController : ControllerBase
         var email = User.FindFirst(ClaimTypes.Email)?.Value;
         return Ok(new { name, email, userId });
     }
+
+    [HttpPost("test-login")]
+    [ProducesResponseType(typeof(OkObjectResult), 200)]
+    public IActionResult TestLogin([FromQuery] string email = "testuser@testflow.com", [FromQuery] string name = "Test User")
+    {
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = email,
+            Name = name,
+            Role = "User"
+        };
+
+        var token = GenerateJwt(user);
+        return Ok(new { token, email = user.Email, name = user.Name });
+    }
 }
