@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using TestFlow.Application.Intefaces;
+using TestFlow.Application.Interfaces;
 using TestFlow.Infrastructure.Repositories;
 
 namespace TestFlow.Infrastructure;
