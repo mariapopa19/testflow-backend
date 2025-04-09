@@ -4,9 +4,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using TestFlow.API.Models.Requests;
+using TestFlow.Application.Models.GoogleLogin;
 using TestFlow.Domain.Entities;
 using TestFlow.Infrastructure;
 
@@ -27,18 +30,34 @@ public class AuthController : ControllerBase
     [HttpPost("google-register")]
     public async Task<IActionResult> GoogleRegister([FromBody] GoogleLoginRequest request)
     {
-        var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken);
-        var email = payload.Email;
+        if (string.IsNullOrWhiteSpace(request.AccessToken))
+            return BadRequest("Access token is required.");
 
-        var exists = await _context.Users.AnyAsync(u => u.Email == email);
+        using var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", request.AccessToken);
+
+        var response = await httpClient.GetAsync("https://www.googleapis.com/oauth2/v3/userinfo");
+        if (!response.IsSuccessStatusCode)
+            return Unauthorized("Invalid Google access token.");
+
+        var userInfoJson = await response.Content.ReadAsStringAsync();
+        var userInfo = JsonSerializer.Deserialize<GoogleUserInfo>(userInfoJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        
+        if (userInfo == null || string.IsNullOrWhiteSpace(userInfo.Email))
+            return Unauthorized("Could not retrieve user info from Google.");
+
+        var exists = await _context.Users.AnyAsync(u => u.Email == userInfo.Email);
         if (exists)
             return BadRequest("User already exists");
+
+        if (userInfo == null || string.IsNullOrWhiteSpace(userInfo.Name))
+            return Unauthorized("Could not retrieve user info from Google.");
 
         var user = new User
         {
             Id = Guid.NewGuid(),
-            Email = email,
-            Name = payload.Name,
+            Email = userInfo.Email,
+            Name = userInfo.Name,
             Role = "User"
         };
 
@@ -52,9 +71,23 @@ public class AuthController : ControllerBase
     [HttpPost("google-login")]
     public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
     {
-        var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken);
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == payload.Email);
+        if (string.IsNullOrWhiteSpace(request.AccessToken))
+            return BadRequest("Access token is required.");
 
+        using var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", request.AccessToken);
+
+        var response = await httpClient.GetAsync("https://www.googleapis.com/oauth2/v3/userinfo");
+        if (!response.IsSuccessStatusCode)
+            return Unauthorized("Invalid Google access token.");
+
+        var userInfoJson = await response.Content.ReadAsStringAsync();
+        var userInfo = JsonSerializer.Deserialize<GoogleUserInfo>(userInfoJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        if (userInfo == null || string.IsNullOrWhiteSpace(userInfo.Email))
+            return Unauthorized("Could not retrieve user info from Google.");
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userInfo.Email);
         if (user == null)
             return Unauthorized("User not found. Please register.");
 

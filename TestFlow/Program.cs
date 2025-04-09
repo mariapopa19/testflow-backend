@@ -85,7 +85,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors(policy =>
-    policy.WithOrigins("http://localhost:3000") // Allow your frontend origin
+    policy.WithOrigins("http://localhost:5173") // Allow your frontend origin
           .AllowAnyHeader()
           .AllowAnyMethod());
 
