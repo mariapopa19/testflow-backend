@@ -65,7 +65,7 @@ public class AuthController : ControllerBase
         await _context.SaveChangesAsync();
 
         var token = GenerateJwt(user);
-        return Ok(new { token, email = user.Email, name = user.Name });
+        return Ok(new { token, email = user.Email, name = user.Name, picture = userInfo.Picture });
     }
 
     [HttpPost("google-login")]
@@ -92,7 +92,7 @@ public class AuthController : ControllerBase
             return Unauthorized("User not found. Please register.");
 
         var token = GenerateJwt(user);
-        return Ok(new { token, name = user.Name, email = user.Email });
+        return Ok(new { token, name = user.Name, email = user.Email, picture = userInfo.Picture });
     }
 
     private string GenerateJwt(User user)
