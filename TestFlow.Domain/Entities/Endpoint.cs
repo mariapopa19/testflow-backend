@@ -5,6 +5,8 @@ public class Endpoint
     public string Url { get; set; } = null!;
     public string Name { get; set; } = null!;
     public string HttpMethod { get; set; } = null!;
+    public string RequestBodyModel { get; set; } = null!;
+    public string ResponseBodyModel { get; set; } = null!;
 
     public Guid UserId { get; set; }
     public User User { get; set; } = null!;

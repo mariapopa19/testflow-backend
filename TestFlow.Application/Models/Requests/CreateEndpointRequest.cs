@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using TestFlow.Domain.Enums;
+﻿using System.ComponentModel.DataAnnotations;
+using TestFlow.Application.Models.CustomValidationAttributes;
 using static TestFlow.Domain.Enums.HttpMethods;
 
 namespace TestFlow.Application.Models.Requests;
@@ -18,5 +13,10 @@ public class CreateEndpointRequest
     [Required]
     [EnumDataType(typeof(HttpMethodEnum), ErrorMessage = "The Http Methods should be one of GET, POST, PUT, DELETE, PATCH.")]
     public string HttpMethod { get; set; } = null!;
+    [RequiredIfNotGet("HttpMethod")]
+    [JsonFormat]
+    public string RequestBodyModel { get; set; } = null!;
+    [JsonFormat]
+    public string ResponseBodyModel { get; set; } = null!;
 }
 

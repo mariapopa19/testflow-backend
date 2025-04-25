@@ -42,7 +42,7 @@ public class AuthController : ControllerBase
 
         var userInfoJson = await response.Content.ReadAsStringAsync();
         var userInfo = JsonSerializer.Deserialize<GoogleUserInfo>(userInfoJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        
+
         if (userInfo == null || string.IsNullOrWhiteSpace(userInfo.Email))
             return Unauthorized("Could not retrieve user info from Google.");
 
@@ -133,17 +133,19 @@ public class AuthController : ControllerBase
 
     [HttpPost("test-login")]
     [ProducesResponseType(typeof(OkObjectResult), 200)]
-    public IActionResult TestLogin([FromQuery] string email = "testuser@testflow.com", [FromQuery] string name = "Test User")
+    public async Task<IActionResult> TestLogin([FromQuery] string email = "testuser@testflow.com")
     {
-        var user = new User
+        var exists = await _context.Users.AnyAsync(u => u.Email == email);
+        if (exists)
         {
-            Id = Guid.NewGuid(),
-            Email = email,
-            Name = name,
-            Role = "User"
-        };
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null)
+                return BadRequest("User not found");
 
-        var token = GenerateJwt(user);
-        return Ok(new { token, email = user.Email, name = user.Name });
+            var token = GenerateJwt(user);
+
+            return Ok(new { token, email = user.Email, name = user.Name });
+        }
+        return BadRequest();
     }
 }

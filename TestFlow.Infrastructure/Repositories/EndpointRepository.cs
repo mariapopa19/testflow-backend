@@ -19,9 +19,11 @@ public class EndpointRepository : IEndpointRepository
             .ToListAsync();
     }
 
-    public async Task<Endpoint?> GetByIdAsync(Guid id)
+    public async Task<Endpoint?> GetByIdAsync(Guid id, Guid userId)
     {
-        return await _context.Endpoints.FindAsync(id);
+        return await _context.Endpoints
+            .Where(e => e.UserId == userId && e.Id == id)
+            .FirstOrDefaultAsync();
     }
 
     public async Task AddAsync(Endpoint endpoint)

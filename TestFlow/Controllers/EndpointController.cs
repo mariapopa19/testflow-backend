@@ -38,6 +38,17 @@ public class EndpointController : ControllerBase
         var endpoints = await _endpointService.GetUserEndpointsAsync(Guid.Parse(userId));
         return Ok(endpoints);
     }
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(Guid id)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userId is null) return Unauthorized();
+
+        var endpoint = await _endpointService.GetUserEndpointByIdAsync(id, Guid.Parse(userId));
+        if (endpoint == null) return NotFound();
+
+        return Ok(endpoint);
+    }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(Guid id)

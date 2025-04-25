@@ -11,4 +11,6 @@ public class EndpointResponse
     public string Name { get; set; } = null!; 
     public string Url { get; set; } = null!; 
     public string HttpMethod { get; set; } = null!;
+    public string RequestBodyModel { get; set; } = null!;
+    public string ResponseBodyModel { get; set; } = null!;
 }

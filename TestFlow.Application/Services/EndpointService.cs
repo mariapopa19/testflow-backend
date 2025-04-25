@@ -28,7 +28,9 @@ public class EndpointService : IEndpointIService
             Id = e.Id,
             Name = e.Name,
             Url = e.Url,
-            HttpMethod = e.HttpMethod
+            HttpMethod = e.HttpMethod,
+            RequestBodyModel = e.RequestBodyModel,
+            ResponseBodyModel = e.ResponseBodyModel
         }).ToList();
     }
 
@@ -39,7 +41,9 @@ public class EndpointService : IEndpointIService
             Id = Guid.NewGuid(),
             Name = request.Name,
             Url = request.Url,
-            HttpMethod = request.HttpMethod,
+            HttpMethod = request.HttpMethod.ToString(),
+            RequestBodyModel = request.RequestBodyModel,
+            ResponseBodyModel = request.ResponseBodyModel,
             UserId = userId
         };
 
@@ -49,17 +53,36 @@ public class EndpointService : IEndpointIService
             Id = endpoint.Id,
             Name = endpoint.Name,
             Url = endpoint.Url,
-            HttpMethod = endpoint.HttpMethod
+            HttpMethod = endpoint.HttpMethod,
+            RequestBodyModel = endpoint.RequestBodyModel,
+            ResponseBodyModel = endpoint.ResponseBodyModel
         };
     }
 
     public async Task<bool> DeleteAsync(Guid id, Guid userId)
     {
-        var endpoint = await _repo.GetByIdAsync(id);
+        var endpoint = await _repo.GetByIdAsync(id, userId);
         if (endpoint == null || endpoint.UserId != userId)
             return false;
 
         await _repo.DeleteAsync(endpoint);
         return true;
+    }
+
+    public async Task<EndpointResponse> GetUserEndpointByIdAsync(Guid id, Guid userId)
+    {
+        var endpoint = await _repo.GetByIdAsync(id, userId);
+        if (endpoint == null)
+            throw new InvalidOperationException("Endpoint not found");
+
+        return new EndpointResponse
+        {
+            Id = endpoint.Id,
+            Name = endpoint.Name,
+            Url = endpoint.Url,
+            HttpMethod = endpoint.HttpMethod,
+            RequestBodyModel = endpoint.RequestBodyModel,
+            ResponseBodyModel = endpoint.ResponseBodyModel
+        };
     }
 }
