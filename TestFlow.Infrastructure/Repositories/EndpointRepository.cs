@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TestFlow.Application.Interfaces;
+using TestFlow.Application.Models.Requests;
 using TestFlow.Domain.Entities;
 
 namespace TestFlow.Infrastructure.Repositories;
@@ -36,6 +37,32 @@ public class EndpointRepository : IEndpointRepository
     {
         _context.Endpoints.Remove(endpoint);
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<bool> UpdateEndpointAsync(Guid id, UpdateEndpointRequest request)
+    {
+        var endpoint = await _context.Endpoints.FindAsync(id);
+
+        if (endpoint == null)
+            return false;
+
+        if (!string.IsNullOrEmpty(request.Name))
+            endpoint.Name = request.Name;
+
+        if (!string.IsNullOrEmpty(request.Url))
+            endpoint.Url = request.Url;
+
+        if (!string.IsNullOrEmpty(request.Method))
+            endpoint.HttpMethod = request.Method;
+
+        if (!string.IsNullOrEmpty(request.RequestBodyModel))
+            endpoint.RequestBodyModel = request.RequestBodyModel;
+
+        if (!string.IsNullOrEmpty(request.ResponseBodyModel))
+            endpoint.ResponseBodyModel = request.ResponseBodyModel;
+
+        await _context.SaveChangesAsync();
+        return true;
     }
 
 }

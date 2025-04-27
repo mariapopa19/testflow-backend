@@ -13,4 +13,5 @@ public interface IEndpointIService
     Task<EndpointResponse> GetUserEndpointByIdAsync(Guid id, Guid userId);
     Task<EndpointResponse> CreateAsync(CreateEndpointRequest request, Guid userId);
     Task<bool> DeleteAsync(Guid id, Guid userId);
+    Task<bool> UpdateEndpointAsync(Guid id, Guid userId, UpdateEndpointRequest request);
 }

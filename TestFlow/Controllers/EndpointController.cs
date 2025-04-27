@@ -61,4 +61,20 @@ public class EndpointController : ControllerBase
 
         return NoContent();
     }
+
+    [HttpPatch("{id}")]
+    public async Task<IActionResult> UpdateEndpoint(Guid id, [FromBody] UpdateEndpointRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userId is null) return Unauthorized();
+
+        var updated = await _endpointService.UpdateEndpointAsync(id, Guid.Parse(userId), request);
+
+        if (!updated)
+        {
+            return NotFound("Endpoint not found.");
+        }
+
+        return Ok("Endpoint updated successfully.");
+    }
 }

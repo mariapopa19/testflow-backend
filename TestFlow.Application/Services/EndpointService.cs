@@ -85,4 +85,10 @@ public class EndpointService : IEndpointIService
             ResponseBodyModel = endpoint.ResponseBodyModel
         };
     }
+
+    public async Task<bool> UpdateEndpointAsync(Guid id, Guid userId, UpdateEndpointRequest request)
+    {
+        return await _repo.UpdateEndpointAsync(id, request);
+    }
 }
+

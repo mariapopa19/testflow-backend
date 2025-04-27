@@ -1,4 +1,5 @@
-﻿using TestFlow.Domain.Entities;
+﻿using TestFlow.Application.Models.Requests;
+using TestFlow.Domain.Entities;
 
 namespace TestFlow.Application.Interfaces;
 public interface IEndpointRepository 
@@ -7,4 +8,5 @@ public interface IEndpointRepository
     Task<Endpoint?> GetByIdAsync(Guid id, Guid userId);
     Task AddAsync(Endpoint endpoint);
     Task DeleteAsync(Endpoint endpoint);
+    Task<bool> UpdateEndpointAsync(Guid id, UpdateEndpointRequest request);
 }
