@@ -10,6 +10,7 @@ using System.Text;
 using System.Text.Json;
 using TestFlow.API.Models.Requests;
 using TestFlow.Application.Models.GoogleLogin;
+using TestFlow.Application.Models.Requests;
 using TestFlow.Domain.Entities;
 using TestFlow.Infrastructure;
 
@@ -121,16 +122,6 @@ public class AuthController : ControllerBase
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    [Authorize]
-    [HttpGet("me")]
-    public IActionResult GetMe()
-    {
-        var name = User.Identity?.Name;
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var email = User.FindFirst(ClaimTypes.Email)?.Value;
-        return Ok(new { name, email, userId });
-    }
-
     [HttpPost("test-login")]
     [ProducesResponseType(typeof(OkObjectResult), 200)]
     public async Task<IActionResult> TestLogin([FromQuery] string email = "testuser@testflow.com")
@@ -147,5 +138,39 @@ public class AuthController : ControllerBase
             return Ok(new { token, email = user.Email, name = user.Name });
         }
         return BadRequest();
+    }
+
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            return BadRequest("Email and password are required.");
+        var exists = await _context.Users.AnyAsync(u => u.Email == request.Email);
+        if (exists)
+            return BadRequest("User already exists");
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = request.Email,
+            Name = request.Name,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            Role = "User"
+        };
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+        var token = GenerateJwt(user);
+        return Ok(new { token, email = user.Email, name = user.Name, picture = user.PictureUrl });
+    }
+
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            return BadRequest("Email and password are required.");
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            return Unauthorized("Invalid email or password.");
+        var token = GenerateJwt(user);
+        return Ok(new { token, email = user.Email, name = user.Name, picture = user.PictureUrl });
     }
 }
