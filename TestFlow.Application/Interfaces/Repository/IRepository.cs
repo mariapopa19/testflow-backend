@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TestFlow.Application.Interfaces;
+namespace TestFlow.Application.Interfaces.Repository;
 public interface IRepository<T> where T : class 
 {
     Task<T?> GetByIdAsync(Guid id);

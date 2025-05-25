@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using TestFlow.Application.Models.Requests;
 using TestFlow.Application.Models.Responses;
 
-namespace TestFlow.Application.Interfaces;
+namespace TestFlow.Application.Interfaces.Services;
 public interface IEndpointIService
 {
     Task<List<EndpointResponse>> GetUserEndpointsAsync(Guid userId);

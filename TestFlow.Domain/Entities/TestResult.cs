@@ -8,3 +8,4 @@ public class TestResult
     public string Outcome { get; set; } = null!;  // ex: "Pass", "Fail"
     public string Details { get; set; } = null!;  // JSON or plain error message
 }
+

@@ -13,4 +13,8 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\TestFlow.Common\TestFlow.Common.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -1,7 +1,7 @@
 ﻿using TestFlow.Application.Models.Requests;
 using TestFlow.Domain.Entities;
 
-namespace TestFlow.Application.Interfaces;
+namespace TestFlow.Application.Interfaces.Repository;
 public interface IEndpointRepository 
 {
     Task<List<Endpoint>> GetByUserIdAsync(Guid userId);

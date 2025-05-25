@@ -1,7 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
-using TestFlow.Application.Interfaces;
+using TestFlow.Application.Interfaces.Services;
 using TestFlow.Application.Models.Requests;
 
 
@@ -29,7 +29,7 @@ public class EndpointController : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet]
+    [HttpGet("all-endpoints")]
     public async Task<IActionResult> GetAll()
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

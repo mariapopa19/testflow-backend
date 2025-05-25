@@ -1,14 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using TestFlow.Application.Interfaces;
+﻿using System.Text.Json;
+using TestFlow.Application.Interfaces.Repository;
+using TestFlow.Application.Interfaces.Services;
 using TestFlow.Application.Models.Requests;
 using TestFlow.Application.Models.Responses;
 using TestFlow.Domain.Entities;
-using static TestFlow.Domain.Enums.HttpMethods;
 
 namespace TestFlow.Application.Services;
 public class EndpointService : IEndpointIService
@@ -44,6 +39,7 @@ public class EndpointService : IEndpointIService
             HttpMethod = request.HttpMethod.ToString(),
             RequestBodyModel = request.RequestBodyModel,
             ResponseBodyModel = request.ResponseBodyModel,
+            HeadersJson = request.Headers != null ? JsonSerializer.Serialize(request.Headers) : null,
             UserId = userId
         };
 
@@ -55,7 +51,8 @@ public class EndpointService : IEndpointIService
             Url = endpoint.Url,
             HttpMethod = endpoint.HttpMethod,
             RequestBodyModel = endpoint.RequestBodyModel,
-            ResponseBodyModel = endpoint.ResponseBodyModel
+            ResponseBodyModel = endpoint.ResponseBodyModel,
+            HeadersJson = request.Headers != null ? JsonSerializer.Serialize(request.Headers) : null
         };
     }
 

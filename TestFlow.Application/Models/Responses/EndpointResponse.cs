@@ -13,4 +13,5 @@ public class EndpointResponse
     public string HttpMethod { get; set; } = null!;
     public string RequestBodyModel { get; set; } = null!;
     public string ResponseBodyModel { get; set; } = null!;
+    public string? HeadersJson { get; set; }
 }

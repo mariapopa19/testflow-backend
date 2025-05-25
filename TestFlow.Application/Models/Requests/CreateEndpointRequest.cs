@@ -18,5 +18,6 @@ public class CreateEndpointRequest
     public string RequestBodyModel { get; set; } = null!;
     [JsonFormat]
     public string ResponseBodyModel { get; set; } = null!;
+    public Dictionary<string, string>? Headers { get; set; } = null!;
 }
 

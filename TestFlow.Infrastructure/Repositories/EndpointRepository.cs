@@ -1,5 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
-using TestFlow.Application.Interfaces;
+﻿using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using TestFlow.Application.Interfaces.Repository;
 using TestFlow.Application.Models.Requests;
 using TestFlow.Domain.Entities;
 
@@ -60,6 +62,9 @@ public class EndpointRepository : IEndpointRepository
 
         if (!string.IsNullOrEmpty(request.ResponseBodyModel))
             endpoint.ResponseBodyModel = request.ResponseBodyModel;
+
+        if (request.Headers != null && request.Headers.Any())
+            endpoint.HeadersJson = JsonSerializer.Serialize(request.Headers);
 
         await _context.SaveChangesAsync();
         return true;

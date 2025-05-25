@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using TestFlow.Application.Interfaces;
+using TestFlow.Application.Interfaces.Repository;
 using TestFlow.Infrastructure.Repositories;
 
 namespace TestFlow.Infrastructure;
@@ -16,8 +16,9 @@ public static class DependencyInjection
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
         services.AddScoped<IEndpointRepository, EndpointRepository>();
-
-        // You can register logging, caching, messaging, etc. here too
+        services.AddScoped<ITestRunRepository, TestRunRepository>();
+        services.AddScoped<ITestResultRepository, TestResultRepository>();
+        
         return services;
     }
 }

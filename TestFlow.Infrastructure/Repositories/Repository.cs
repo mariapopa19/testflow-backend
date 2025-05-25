@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TestFlow.Application.Interfaces;
+using TestFlow.Application.Interfaces.Repository;
 
 namespace TestFlow.Infrastructure.Repositories;
 public class Repository<T> : IRepository<T> where T : class
