@@ -54,7 +54,7 @@ namespace TestFlow.API.Controllers
         }
 
 
-        [HttpPost("validation/run/{endpointId}")]
+        [HttpPost("validation/run")]
         public async Task<ActionResult<List<TestResultDto>>> RunValidationTests(RunTestsRequest runTestsRequest)
         {
             try
@@ -105,7 +105,7 @@ namespace TestFlow.API.Controllers
             }
         }
 
-        [HttpPost("fuzzy/run/{endpointId}")]
+        [HttpPost("fuzzy/run")]
         public async Task<ActionResult<List<TestResultDto>>> RunFuzzyTests(RunTestsRequest runTestsRequest)
         {
             try
@@ -155,7 +155,7 @@ namespace TestFlow.API.Controllers
             }
         }
 
-        [HttpPost("functional/run/{endpointId}")]
+        [HttpPost("functional/run")]
         public async Task<ActionResult<List<TestResultDto>>> RunFunctionalTests(RunTestsRequest runTestsRequest)
         {
             try

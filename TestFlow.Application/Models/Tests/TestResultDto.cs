@@ -10,6 +10,7 @@ namespace TestFlow.Application.Models.Tests
     {
         public string TestCaseType { get; set; } = null!;
         public string Input { get; set; } = null!;
+        public List<int>? ExpectedStatusCode { get; set; }
         public int ActualStatusCode { get; set; }
         public bool Passed { get; set; }
         public string? ResponseBody { get; set; }

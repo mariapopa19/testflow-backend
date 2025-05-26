@@ -10,6 +10,7 @@ public static class DependencyInjection
     {
         services.AddScoped<IEndpointIService, EndpointService>();
         services.AddScoped<ITestCaseGeneratorService, TestCaseGeneratorService>();
+        services.AddScoped<IAIClientService, AIClientService>();
 
         // You can register logging, caching, messaging, etc. here too
         return services;

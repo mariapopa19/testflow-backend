@@ -20,21 +20,18 @@ namespace TestFlow.Application.Services
         private readonly IEndpointRepository _endpointRepository;
         private readonly ITestRunRepository _testRunRepository;
         private readonly ITestResultRepository _testResultRepository;
-        private readonly HttpClient _httpClient;
-        private readonly string _openAiApiKey;
+        private readonly IAIClientService _aiClientService;
 
         public TestCaseGeneratorService(
             IEndpointRepository endpointRepository,
             ITestRunRepository testRunRepository,
             ITestResultRepository testResultRepository,
-            IHttpClientFactory httpClientFactory,
-            IConfiguration configuration)
+            IAIClientService aiClientService)
         {
             _endpointRepository = endpointRepository;
             _testRunRepository = testRunRepository;
             _testResultRepository = testResultRepository;
-            _httpClient = httpClientFactory.CreateClient(); 
-            _openAiApiKey = configuration["HuggingFace:ApiKey"]!;
+            _aiClientService = aiClientService;
         }
 
         public async Task<List<TestCase>> GenerateValidationTestsAsync(Guid endpointId, Guid userId)
@@ -99,35 +96,9 @@ namespace TestFlow.Application.Services
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
             if (endpoint == null) throw new ArgumentException("Endpoint not found");
 
-            var prompt = $"Generează 3 cazuri de test de validare pentru următorul model JSON: { endpoint.RequestBodyModel}. " +
-                         $"Fiecare test trebuie să aibă `Input` (ca string JSON) și `ExpectedStatusCode`. Răspunde cu un array JSON.";
+            var prompt = AIResponseHelper.GenerateAIPrompt("validation", endpoint);
 
-            var routerBody = new
-            {
-                model = "mistralai/Mistral-7B-Instruct-v0.3",
-                stream = false,
-                messages = new[]
-                {
-                    new { role = "user", content = prompt }
-                }
-            };
-
-            var request = new HttpRequestMessage(HttpMethod.Post,
-                "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.3/v1/chat/completions")
-            {
-                Content = new StringContent(JsonSerializer.Serialize(routerBody), Encoding.UTF8, "application/json")
-            };
-
-
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _openAiApiKey);
-
-            var response = await _httpClient.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-
-
-            var content = await response.Content.ReadAsStringAsync();
-            var root = JsonDocument.Parse(content).RootElement;
-            var rawJson = root.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
+            var rawJson = await _aiClientService.GetPromptResponseAsync(prompt);
 
             var testCases = AIResponseHelper.ExtractTestCasesFromRaw(rawJson!);
             return testCases ?? new List<TestCase>();
@@ -183,8 +154,6 @@ namespace TestFlow.Application.Services
                 {
                     request.Headers.Add(kvp.Key, kvp.Value);
                 }
-                // linia asta este ca sa merga endpointul de test de la reqres.in
-                //request.Headers.TryAddWithoutValidation("x-api-key", "reqres-free-v1");
 
                 var response = await httpClient.SendAsync(request);
                 var responseBody = await response.Content.ReadAsStringAsync();
@@ -195,12 +164,13 @@ namespace TestFlow.Application.Services
                 {
                     Id = Guid.NewGuid(),
                     TestRunId = testRun.Id,
+                    StartedAt = DateTime.UtcNow,
                     Outcome = passed ? "Pass" : "Fail",
                     Details = JsonSerializer.Serialize(new
                     {
                         test.Type,
                         test.Input,
-                        ExpectedStatusCode = test.ExpectedStatusCode,
+                        test.ExpectedStatusCode,
                         ActualStatusCode = (int)response.StatusCode,
                         ResponseBody = responseBody
                     })
@@ -212,6 +182,7 @@ namespace TestFlow.Application.Services
                 {
                     TestCaseType = test.Type,
                     Input = test.Input,
+                    ExpectedStatusCode = test.ExpectedStatusCode,
                     ActualStatusCode = (int)response.StatusCode,
                     Passed = passed,
                     ResponseBody = responseBody
@@ -226,33 +197,11 @@ namespace TestFlow.Application.Services
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
             if (endpoint == null) throw new ArgumentException("Endpoint not found");
 
-            var prompt = $"Generează 3 cazuri de test fuzzy (cu date invalide sau neașteptate) pentru următorul model JSON:\n{endpoint.RequestBodyModel}";
+            var prompt = AIResponseHelper.GenerateAIPrompt("fuzzy", endpoint);
 
-            var request = new
-            {
-                model = "gpt-4o-mini",
-                messages = new[]
-                {
-                    new { role = "system", content = "Ești un generator de cazuri de test pentru API-uri REST. Răspunzi cu un array JSON de teste." },
-                    new { role = "user", content = prompt }
-                },
-                temperature = 0.4
-            };
+            var rawJson = await _aiClientService.GetPromptResponseAsync(prompt);
 
-            var requestContent = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _openAiApiKey);
-
-            var response = await _httpClient.PostAsync("https://api.openai.com/v1/chat/completions", requestContent);
-            response.EnsureSuccessStatusCode();
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var completion = JsonDocument.Parse(responseContent)
-                .RootElement.GetProperty("choices")[0]
-                .GetProperty("message")
-                .GetProperty("content")
-                .GetString();
-
-            var testCases = JsonSerializer.Deserialize<List<TestCase>>(completion!);
+            var testCases = AIResponseHelper.ExtractTestCasesFromRaw(rawJson!);
             return testCases ?? new List<TestCase>();
         }
 
@@ -425,33 +374,11 @@ namespace TestFlow.Application.Services
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
             if (endpoint == null) throw new ArgumentException("Endpoint not found");
 
-            var prompt = $"Generează 3 cazuri de test funcționale pentru următorul model JSON:\n{endpoint.RequestBodyModel}";
+            var prompt = AIResponseHelper.GenerateAIPrompt("functional", endpoint);
 
-            var request = new
-            {
-                model = "gpt-4o-mini",
-                messages = new[]
-                {
-                    new { role = "system", content = "Ești un generator de cazuri de test pentru API-uri REST. Răspunzi cu un array JSON de teste." },
-                    new { role = "user", content = prompt }
-                },
-                temperature = 0.2
-            };
+            var rawJson = await _aiClientService.GetPromptResponseAsync(prompt);
 
-            var requestContent = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _openAiApiKey);
-
-            var response = await _httpClient.PostAsync("https://api.openai.com/v1/chat/completions", requestContent);
-            response.EnsureSuccessStatusCode();
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var completion = JsonDocument.Parse(responseContent)
-                .RootElement.GetProperty("choices")[0]
-                .GetProperty("message")
-                .GetProperty("content")
-                .GetString();
-
-            var testCases = JsonSerializer.Deserialize<List<TestCase>>(completion!);
+            var testCases = AIResponseHelper.ExtractTestCasesFromRaw(rawJson!);
             return testCases ?? new List<TestCase>();
         }
 
@@ -518,7 +445,7 @@ namespace TestFlow.Application.Services
                     {
                         test.Type,
                         test.Input,
-                        ExpectedStatusCode = test.ExpectedStatusCode,
+                        test.ExpectedStatusCode,
                         ActualStatusCode = (int)response.StatusCode,
                         ResponseBody = responseBody
                     })
