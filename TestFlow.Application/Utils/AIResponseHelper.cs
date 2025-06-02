@@ -7,7 +7,7 @@ namespace TestFlow.Application.Utils
 {
     public static class AIResponseHelper
     {
-        public static List<TestCase> ExtractTestCasesFromRaw(string rawText)
+        public static List<TestCase> ExtractTestCasesFromRaw(string rawText, string testType = "Validation")
         {
             var normalized = System.Net.WebUtility.HtmlDecode(rawText);
             var cases = new List<TestCase>();
@@ -38,7 +38,7 @@ namespace TestFlow.Application.Utils
 
                         cases.Add(new TestCase
                         {
-                            Type = "Validation",
+                            Type = testType,
                             Input = Regex.Unescape(input ?? string.Empty),
                             ExpectedStatusCode = expectedCodes
                         });
@@ -64,14 +64,14 @@ namespace TestFlow.Application.Utils
                          "Each test case must be an object with \"Input\" (as a JSON string representing query parameters or path variables, or empty if none) and \"ExpectedStatusCode\" (as an array of numbers, e.g. [200, 404]). " +
                          "Return ONLY a valid JSON array, with no explanations, labels, or extra text. Example:\n" +
                          "[\n" +
-                         "  {{ \"Input\": \"{{}}\", \"ExpectedStatusCode\": [200, 201] }},\n" +
+                         "  {{ \"Input\": \"null\", \"ExpectedStatusCode\": [200, 201] }},\n" +
                          "  {{ \"Input\": \"{{\\\"id\\\":\\\"nonexistent\\\"}}\", \"ExpectedStatusCode\": [404, 400] }}\n" +
                          "]",
                 "DELETE" => $"Generate 3 {testType} test cases for the DELETE method at URL: {endpoint.Url}. " +
                             "Each test case must be an object with \"Input\" (as a JSON string representing path variables or query parameters, or empty if none) and \"ExpectedStatusCode\" (as an array of numbers, e.g. [200, 404]). " +
                             "Return ONLY a valid JSON array, with no explanations, labels, or extra text. Example:\n" +
                             "[\n" +
-                            "  {{ \"Input\": \"{{}}\", \"ExpectedStatusCode\": [204, 201, 200] }},\n" +
+                            "  {{ \"Input\": \"null\", \"ExpectedStatusCode\": [204, 201, 200] }},\n" +
                             "  {{ \"Input\": \"{{\\\"id\\\":\\\"invalid\\\"}}\", \"ExpectedStatusCode\": [404, 400] }}\n" +
                             "]",
                 "POST" or "PUT" or "PATCH" => $"Generate 3 {testType} test cases for the {method} method and for the following JSON model: {endpoint.RequestBodyModel}. " +

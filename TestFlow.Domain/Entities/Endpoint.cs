@@ -13,4 +13,6 @@ public class Endpoint
     public User User { get; set; } = null!;
 
     public ICollection<TestRun> TestRuns { get; set; } = new List<TestRun>();
+
+    public ICollection<TestCase> TestCases { get; set; } = new List<TestCase>();
 }

@@ -21,20 +21,23 @@ namespace TestFlow.Application.Services
         private readonly ITestRunRepository _testRunRepository;
         private readonly ITestResultRepository _testResultRepository;
         private readonly IAIClientService _aiClientService;
+        private readonly ITestCaseRepository _testCaseRepository;
 
         public TestCaseGeneratorService(
             IEndpointRepository endpointRepository,
             ITestRunRepository testRunRepository,
             ITestResultRepository testResultRepository,
-            IAIClientService aiClientService)
-        {
+            IAIClientService aiClientService,
+            ITestCaseRepository testCaseRepository)
+            {
             _endpointRepository = endpointRepository;
             _testRunRepository = testRunRepository;
             _testResultRepository = testResultRepository;
             _aiClientService = aiClientService;
-        }
+            _testCaseRepository = testCaseRepository;
+            }
 
-        public async Task<List<TestCase>> GenerateValidationTestsAsync(Guid endpointId, Guid userId)
+        public async Task<List<TestCaseDto>> GenerateValidationTestsAsync(Guid endpointId, Guid userId)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
             if (endpoint == null) throw new ArgumentException("Endpoint not found");
@@ -45,53 +48,78 @@ namespace TestFlow.Application.Services
             {
                 testCases.Add(new TestCase
                 {
+                    Id = Guid.NewGuid(),
+                    EndpointId = endpointId,
                     Type = "Validation",
                     Input = string.Empty,
-                    ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "Success")
+                    ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "Success"),
+                    CreatedAt = DateTime.UtcNow
                 });
-
-                return testCases;
             }
-
-            var model = JsonDocument.Parse(endpoint.RequestBodyModel).RootElement;
-
-            // Caz valid complet (toate câmpurile corecte)
-            var validInput = TestDataFaker.GenerateValidInput(model);
-            testCases.Add(new TestCase
+            else
             {
-                Type = "Validation",
-                Input = JsonSerializer.Serialize(validInput),
-                ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "Success")
-            });
-
-            foreach (var prop in model.EnumerateObject())
-            {
-                // 1. Caz: lipsa unei proprietăți
-                var withoutProp = new Dictionary<string, object?>(validInput);
-                withoutProp.Remove(prop.Name);
+                var model = JsonDocument.Parse(endpoint.RequestBodyModel).RootElement;
+                var validInput = TestDataFaker.GenerateValidInput(model);
 
                 testCases.Add(new TestCase
                 {
+                    Id = Guid.NewGuid(),
+                    EndpointId = endpointId,
                     Type = "Validation",
-                    Input = JsonSerializer.Serialize(withoutProp),
-                    ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "ClientError")
+                    Input = JsonSerializer.Serialize(validInput),
+                    ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "Success"),
+                    CreatedAt = DateTime.UtcNow
                 });
 
-                // 2. Caz: valoare invalidă
-                var corrupted = new Dictionary<string, object?>(validInput);
-                corrupted[prop.Name] = "###INVALID###";
-
-                testCases.Add(new TestCase
+                foreach (var prop in model.EnumerateObject())
                 {
-                    Type = "Validation",
-                    Input = JsonSerializer.Serialize(corrupted),
-                    ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "ClientError")
-                });
+                    var withoutProp = new Dictionary<string, object?>(validInput);
+                    withoutProp.Remove(prop.Name);
+
+                    testCases.Add(new TestCase
+                    {
+                        Id = Guid.NewGuid(),
+                        EndpointId = endpointId,
+                        Type = "Validation",
+                        Input = JsonSerializer.Serialize(withoutProp),
+                        ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "ClientError"),
+                        CreatedAt = DateTime.UtcNow
+                    });
+
+                    var corrupted = new Dictionary<string, object?>(validInput);
+                    corrupted[prop.Name] = "###INVALID###";
+
+                    testCases.Add(new TestCase
+                    {
+                        Id = Guid.NewGuid(),
+                        EndpointId = endpointId,
+                        Type = "Validation",
+                        Input = JsonSerializer.Serialize(corrupted),
+                        ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "ClientError"),
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
             }
-            return testCases;
+
+            // Save all test cases to DB
+            foreach (var testCase in testCases)
+            {
+                await _testCaseRepository.AddAsync(testCase);
+            }
+
+            // Map to DTOs
+            var dtos = testCases.Select(tc => new TestCaseDto
+            {
+                Type = tc.Type,
+                Input = tc.Input,
+                ExpectedStatusCode = tc.ExpectedStatusCode,
+                ExpectedResponse = tc.ExpectedResponse
+            }).ToList();
+
+            return dtos;
         }
 
-        public async Task<List<TestCase>> GenerateValidationTestsWithAIAsync(Guid endpointId, Guid userId)
+        public async Task<List<TestCaseDto>> GenerateValidationTestsWithAIAsync(Guid endpointId, Guid userId)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
             if (endpoint == null) throw new ArgumentException("Endpoint not found");
@@ -100,8 +128,25 @@ namespace TestFlow.Application.Services
 
             var rawJson = await _aiClientService.GetPromptResponseAsync(prompt);
 
-            var testCases = AIResponseHelper.ExtractTestCasesFromRaw(rawJson!);
-            return testCases ?? new List<TestCase>();
+            var testCases = AIResponseHelper.ExtractTestCasesFromRaw(rawJson!, "Validation");
+
+            // Save to DB
+            foreach (var testCase in testCases)
+            {
+                testCase.Id = Guid.NewGuid();
+                testCase.EndpointId = endpointId;
+                testCase.CreatedAt = DateTime.UtcNow;
+                await _testCaseRepository.AddAsync(testCase);
+            }
+
+            // Map to DTOs
+            return testCases.Select(tc => new TestCaseDto
+            {
+                Type = tc.Type,
+                Input = tc.Input,
+                ExpectedStatusCode = tc.ExpectedStatusCode,
+                ExpectedResponse = tc.ExpectedResponse
+            }).ToList();
         }
 
         public async Task<List<TestResultDto>> RunValidationTestsAsync(Guid endpointId, Guid userId, bool artificialInteligence)
@@ -109,14 +154,45 @@ namespace TestFlow.Application.Services
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
             if (endpoint == null) throw new ArgumentException("Endpoint not found");
 
-            List<TestCase> testCases;
-            if (artificialInteligence)
+            var testCases = await _testCaseRepository.GetByEndpointIdAndTestTypeAsync(endpointId, "Validation");
+
+            if (testCases == null || testCases.Count == 0)
             {
-                testCases = await GenerateValidationTestsWithAIAsync(endpointId, userId);
-            }
-            else
-            {
-                testCases = await GenerateValidationTestsAsync(endpointId, userId);
+                List<TestCase> generated;
+                if (artificialInteligence)
+                {
+                    // Generate and save new test cases (as entities)
+                    generated = (await GenerateValidationTestsWithAIAsync(endpointId, userId))
+                        .Select(dto => new TestCase
+                        {
+                            Id = Guid.NewGuid(),
+                            EndpointId = endpointId,
+                            Type = dto.Type,
+                            Input = dto.Input,
+                            ExpectedStatusCode = dto.ExpectedStatusCode,
+                            ExpectedResponse = dto.ExpectedResponse,
+                            CreatedAt = DateTime.UtcNow
+                        }).ToList();
+                }
+                else
+                {
+                    generated = (await GenerateValidationTestsAsync(endpointId, userId))
+                        .Select(dto => new TestCase
+                        {
+                            Id = Guid.NewGuid(),
+                            EndpointId = endpointId,
+                            Type = dto.Type,
+                            Input = dto.Input,
+                            ExpectedStatusCode = dto.ExpectedStatusCode,
+                            ExpectedResponse = dto.ExpectedResponse,
+                            CreatedAt = DateTime.UtcNow
+                        }).ToList();
+                }
+                foreach (var tc in generated)
+                {
+                    await _testCaseRepository.AddAsync(tc);
+                }
+                testCases = generated;
             }
 
             var resultDtos = new List<TestResultDto>();
@@ -161,20 +237,21 @@ namespace TestFlow.Application.Services
                 var passed = test.ExpectedStatusCode?.Contains((int)response.StatusCode) == true;
 
                 var testResult = new TestResult
-                {
+                    {
                     Id = Guid.NewGuid(),
                     TestRunId = testRun.Id,
+                    TestCaseId = test.Id, // <-- Link to the test case
                     StartedAt = DateTime.UtcNow,
                     Outcome = passed ? "Pass" : "Fail",
                     Details = JsonSerializer.Serialize(new
-                    {
+                        {
                         test.Type,
                         test.Input,
                         test.ExpectedStatusCode,
                         ActualStatusCode = (int)response.StatusCode,
                         ResponseBody = responseBody
-                    })
-                };
+                        })
+                    };
 
                 await _testResultRepository.AddAsync(testResult);
 
@@ -192,7 +269,7 @@ namespace TestFlow.Application.Services
             return resultDtos;
         }
 
-        public async Task<List<TestCase>> GenerateAIFuzzyTestsAsync(Guid endpointId, Guid userId)
+        public async Task<List<TestCaseDto>> GenerateAIFuzzyTestsAsync(Guid endpointId, Guid userId)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
             if (endpoint == null) throw new ArgumentException("Endpoint not found");
@@ -201,11 +278,28 @@ namespace TestFlow.Application.Services
 
             var rawJson = await _aiClientService.GetPromptResponseAsync(prompt);
 
-            var testCases = AIResponseHelper.ExtractTestCasesFromRaw(rawJson!);
-            return testCases ?? new List<TestCase>();
+            var testCases = AIResponseHelper.ExtractTestCasesFromRaw(rawJson!, "Fuzzy");
+
+            // Save to DB
+            foreach (var testCase in testCases)
+            {
+                testCase.Id = Guid.NewGuid();
+                testCase.EndpointId = endpointId;
+                testCase.CreatedAt = DateTime.UtcNow;
+                await _testCaseRepository.AddAsync(testCase);
+            }
+
+            // Map to DTOs
+            return testCases.Select(tc => new TestCaseDto
+            {
+                Type = tc.Type,
+                Input = tc.Input,
+                ExpectedStatusCode = tc.ExpectedStatusCode,
+                ExpectedResponse = tc.ExpectedResponse
+            }).ToList();
         }
 
-        public async Task<List<TestCase>> GenerateFuzzyTestsAsync(Guid endpointId, Guid userId)
+        public async Task<List<TestCaseDto>> GenerateFuzzyTestsAsync(Guid endpointId, Guid userId)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
             if (endpoint == null) throw new ArgumentException("Endpoint not found");
@@ -216,51 +310,79 @@ namespace TestFlow.Application.Services
             {
                 testCases.Add(new TestCase
                 {
+                    Id = Guid.NewGuid(),
+                    EndpointId = endpointId,
                     Type = "Fuzzy",
                     Input = string.Empty,
-                    ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "Success")
+                    ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Fuzzy", endpoint.HttpMethod, "Success"),
+                    CreatedAt = DateTime.UtcNow
                 });
-                return testCases;
+            }
+            else
+            {
+                var model = JsonDocument.Parse(endpoint.RequestBodyModel).RootElement;
+
+                var baseInput = TestDataFaker.GenerateValidInput(model);
+
+                // Test 1: toate valorile null
+                var allNulls = baseInput.ToDictionary(kvp => kvp.Key, kvp => (object?)null);
+                testCases.Add(new TestCase
+                {
+                    Id = Guid.NewGuid(),
+                    EndpointId = endpointId,
+                    Type = "Fuzzy",
+                    Input = JsonSerializer.Serialize(allNulls),
+                    ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "ClientError"),
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                // Test 2: tipuri greșite
+                var wrongTypes = baseInput.ToDictionary(kvp => kvp.Key, kvp => (object?)new[] { 1, 2, 3 });
+                testCases.Add(new TestCase
+                {
+                    Id = Guid.NewGuid(),
+                    EndpointId = endpointId,
+                    Type = "Fuzzy",
+                    Input = JsonSerializer.Serialize(wrongTypes),
+                    ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "ClientError"),
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                // Test 3: câmpuri lipsă și extra
+                var partialInput = new Dictionary<string, object?>();
+                foreach (var key in baseInput.Keys.Take(baseInput.Count / 2))
+                {
+                    partialInput[key] = baseInput[key];
+                }
+                partialInput["__extra_field__"] = 12345;
+
+                testCases.Add(new TestCase
+                {
+                    Id = Guid.NewGuid(),
+                    EndpointId = endpointId,
+                    Type = "Fuzzy",
+                    Input = JsonSerializer.Serialize(partialInput),
+                    ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "ClientError"),
+                    CreatedAt = DateTime.UtcNow
+                });
             }
 
-            var model = JsonDocument.Parse(endpoint.RequestBodyModel).RootElement;
-
-            var baseInput = TestDataFaker.GenerateValidInput(model);
-
-            // Test 1: toate valorile null
-            var allNulls = baseInput.ToDictionary(kvp => kvp.Key, kvp => (object?)null);
-            testCases.Add(new TestCase
+            // Save all test cases to DB
+            foreach (var testCase in testCases)
             {
-                Type = "Fuzzy",
-                Input = JsonSerializer.Serialize(allNulls),
-                ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "ClientError")
-            });
-
-            // Test 2: tipuri greșite
-            var wrongTypes = baseInput.ToDictionary(kvp => kvp.Key, kvp => (object?)new[] { 1, 2, 3 });
-            testCases.Add(new TestCase
-            {
-                Type = "Fuzzy",
-                Input = JsonSerializer.Serialize(wrongTypes),
-                ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "ClientError")
-            });
-
-            // Test 3: câmpuri lipsă și extra
-            var partialInput = new Dictionary<string, object?>();
-            foreach (var key in baseInput.Keys.Take(baseInput.Count / 2))
-            {
-                partialInput[key] = baseInput[key];
+                await _testCaseRepository.AddAsync(testCase);
             }
-            partialInput["__extra_field__"] = 12345;
 
-            testCases.Add(new TestCase
+            // Map to DTOs
+            var dtos = testCases.Select(tc => new TestCaseDto
             {
-                Type = "Fuzzy",
-                Input = JsonSerializer.Serialize(partialInput),
-                ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "ClientError")
-            });
+                Type = tc.Type,
+                Input = tc.Input,
+                ExpectedStatusCode = tc.ExpectedStatusCode,
+                ExpectedResponse = tc.ExpectedResponse
+            }).ToList();
 
-            return testCases;
+            return dtos;
         }
 
         public async Task<List<TestResultDto>> RunFuzzyTestsAsync(Guid endpointId, Guid userId, bool artificialInteligence)
@@ -268,14 +390,45 @@ namespace TestFlow.Application.Services
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
             if (endpoint == null) throw new ArgumentException("Endpoint not found");
 
-            List<TestCase> testCases;
-            if (artificialInteligence)
+            var testCases = await _testCaseRepository.GetByEndpointIdAndTestTypeAsync(endpointId, "Fuzzy");
+
+            if (testCases == null || testCases.Count == 0)
             {
-                testCases = await GenerateAIFuzzyTestsAsync(endpointId, userId);
-            }
-            else
-            {
-                testCases = await GenerateFuzzyTestsAsync(endpointId, userId);
+                List<TestCase> generated;
+                if (artificialInteligence)
+                {
+                    // Generate and save new test cases (as entities)
+                    generated = (await GenerateAIFuzzyTestsAsync(endpointId, userId))
+                        .Select(dto => new TestCase
+                        {
+                            Id = Guid.NewGuid(),
+                            EndpointId = endpointId,
+                            Type = dto.Type,
+                            Input = dto.Input,
+                            ExpectedStatusCode = dto.ExpectedStatusCode,
+                            ExpectedResponse = dto.ExpectedResponse,
+                            CreatedAt = DateTime.UtcNow
+                        }).ToList();
+                }
+                else
+                {
+                    generated = (await GenerateFuzzyTestsAsync(endpointId, userId))
+                        .Select(dto => new TestCase
+                        {
+                            Id = Guid.NewGuid(),
+                            EndpointId = endpointId,
+                            Type = dto.Type,
+                            Input = dto.Input,
+                            ExpectedStatusCode = dto.ExpectedStatusCode,
+                            ExpectedResponse = dto.ExpectedResponse,
+                            CreatedAt = DateTime.UtcNow
+                        }).ToList();
+                }
+                foreach (var tc in generated)
+                {
+                    await _testCaseRepository.AddAsync(tc);
+                }
+
             }
 
             var resultDtos = new List<TestResultDto>();
@@ -298,7 +451,7 @@ namespace TestFlow.Application.Services
 
             using var httpClient = new HttpClient();
 
-            foreach (var test in testCases)
+            foreach (var test in testCases ?? [])
             {
                 var method = new HttpMethod(endpoint.HttpMethod.ToUpper());
                 var request = new HttpRequestMessage(method, endpoint.Url);
@@ -348,7 +501,7 @@ namespace TestFlow.Application.Services
             return resultDtos;
         }
 
-        public async Task<List<TestCase>> GenerateFunctionalTestsAsync(Guid endpointId, Guid userId)
+        public async Task<List<TestCaseDto>> GenerateFunctionalTestsAsync(Guid endpointId, Guid userId)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
             if (endpoint == null) throw new ArgumentException("Endpoint not found");
@@ -366,10 +519,25 @@ namespace TestFlow.Application.Services
                 }
             };
 
-            return testCases;
+            // Save all test cases to DB
+            foreach (var testCase in testCases)
+            {
+                await _testCaseRepository.AddAsync(testCase);
+            }
+
+            // Map to DTOs
+            var dtos = testCases.Select(tc => new TestCaseDto
+            {
+                Type = tc.Type,
+                Input = tc.Input,
+                ExpectedStatusCode = tc.ExpectedStatusCode,
+                ExpectedResponse = tc.ExpectedResponse
+            }).ToList();
+
+            return dtos;
         }
 
-        public async Task<List<TestCase>> GenerateAIFunctionalTestsAsync(Guid endpointId, Guid userId)
+        public async Task<List<TestCaseDto>> GenerateAIFunctionalTestsAsync(Guid endpointId, Guid userId)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
             if (endpoint == null) throw new ArgumentException("Endpoint not found");
@@ -378,8 +546,23 @@ namespace TestFlow.Application.Services
 
             var rawJson = await _aiClientService.GetPromptResponseAsync(prompt);
 
-            var testCases = AIResponseHelper.ExtractTestCasesFromRaw(rawJson!);
-            return testCases ?? new List<TestCase>();
+            var testCases = AIResponseHelper.ExtractTestCasesFromRaw(rawJson!, "Functional");
+            // Save all test cases to DB
+            foreach (var testCase in testCases)
+            {
+                await _testCaseRepository.AddAsync(testCase);
+            }
+
+            // Map to DTOs
+            var dtos = testCases.Select(tc => new TestCaseDto
+            {
+                Type = tc.Type,
+                Input = tc.Input,
+                ExpectedStatusCode = tc.ExpectedStatusCode,
+                ExpectedResponse = tc.ExpectedResponse
+            }).ToList();
+
+            return dtos;
         }
 
         public async Task<List<TestResultDto>> RunFunctionalTestsAsync(Guid endpointId, Guid userId, bool artificialInteligence)
@@ -387,15 +570,45 @@ namespace TestFlow.Application.Services
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
             if (endpoint == null) throw new ArgumentException("Endpoint not found");
 
-            List<TestCase> testCases;
+            var testCases = await _testCaseRepository.GetByEndpointIdAndTestTypeAsync(endpointId, "Functional");
 
-            if (artificialInteligence)
+            if (testCases == null || testCases.Count == 0)
             {
-                testCases = await GenerateAIFunctionalTestsAsync(endpointId, userId);
-            }
-            else
-            {
-                testCases = await GenerateFunctionalTestsAsync(endpointId, userId);
+                List<TestCase> generated;
+                if (artificialInteligence)
+                {
+                    // Generate and save new test cases (as entities)
+                    generated = (await GenerateAIFunctionalTestsAsync(endpointId, userId))
+                        .Select(dto => new TestCase
+                        {
+                            Id = Guid.NewGuid(),
+                            EndpointId = endpointId,
+                            Type = dto.Type,
+                            Input = dto.Input,
+                            ExpectedStatusCode = dto.ExpectedStatusCode,
+                            ExpectedResponse = dto.ExpectedResponse,
+                            CreatedAt = DateTime.UtcNow
+                        }).ToList();
+                }
+                else
+                {
+                    generated = (await GenerateFunctionalTestsAsync(endpointId, userId))
+                        .Select(dto => new TestCase
+                        {
+                            Id = Guid.NewGuid(),
+                            EndpointId = endpointId,
+                            Type = dto.Type,
+                            Input = dto.Input,
+                            ExpectedStatusCode = dto.ExpectedStatusCode,
+                            ExpectedResponse = dto.ExpectedResponse,
+                            CreatedAt = DateTime.UtcNow
+                        }).ToList();
+                }
+                foreach (var tc in generated)
+                {
+                    await _testCaseRepository.AddAsync(tc);
+                }
+
             }
 
             var resultDtos = new List<TestResultDto>();
@@ -416,7 +629,7 @@ namespace TestFlow.Application.Services
 
             using var httpClient = new HttpClient();
 
-            foreach (var test in testCases)
+            foreach (var test in testCases ?? [])
             {
                 var method = new HttpMethod(endpoint.HttpMethod.ToUpper());
                 var request = new HttpRequestMessage(method, endpoint.Url);

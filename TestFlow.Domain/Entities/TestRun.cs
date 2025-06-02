@@ -13,4 +13,5 @@ public class TestRun
 
     public ICollection<TestResult> Results { get; set; } = new List<TestResult>();
     public ICollection<FuzzRule> FuzzRules { get; set; } = new List<FuzzRule>();
+    public ICollection<TestCase> TestCases { get; set; } = new List<TestCase>();
 }

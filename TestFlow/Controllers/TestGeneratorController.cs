@@ -21,7 +21,7 @@ namespace TestFlow.API.Controllers
         }
 
         [HttpGet("validation/{endpointId}")]
-        public async Task<ActionResult<List<TestCase>>> GetValidationTests(Guid endpointId)
+        public async Task<ActionResult<List<TestCaseDto>>> GetValidationTests(Guid endpointId)
         {
             try
             {
@@ -38,7 +38,7 @@ namespace TestFlow.API.Controllers
         }
 
         [HttpGet("validation/ai/{endpointId}")]
-        public async Task<ActionResult<List<TestCase>>> GetValidationTestsWithAI(Guid endpointId)
+        public async Task<ActionResult<List<TestCaseDto>>> GetValidationTestsWithAI(Guid endpointId)
         {
             try
             {
@@ -73,7 +73,7 @@ namespace TestFlow.API.Controllers
         }
 
         [HttpGet("fuzzy/{endpointId}")]
-        public async Task<ActionResult<List<TestCase>>> GetFuzzyTests(Guid endpointId)
+        public async Task<ActionResult<List<TestCaseDto>>> GetFuzzyTests(Guid endpointId)
         {
             try
             {
@@ -90,7 +90,7 @@ namespace TestFlow.API.Controllers
         }
 
         [HttpGet("fuzzy/ai/{endpointId}")]
-        public async Task<ActionResult<List<TestCase>>> GetFuzzyTestsWithAI(Guid endpointId)
+        public async Task<ActionResult<List<TestCaseDto>>> GetFuzzyTestsWithAI(Guid endpointId)
         {
             try
             {
@@ -124,7 +124,7 @@ namespace TestFlow.API.Controllers
         }
 
         [HttpGet("functional/{endpointId}")]
-        public async Task<ActionResult<List<TestCase>>> GetFunctionalTests(Guid endpointId)
+        public async Task<ActionResult<List<TestCaseDto>>> GetFunctionalTests(Guid endpointId)
         {
             try
             {
@@ -140,7 +140,7 @@ namespace TestFlow.API.Controllers
         }
 
         [HttpGet("functional/ai/{endpointId}")]
-        public async Task<ActionResult<List<TestCase>>> GetFunctionalTestsWithAI(Guid endpointId)
+        public async Task<ActionResult<List<TestCaseDto>>> GetFunctionalTestsWithAI(Guid endpointId)
         {
             try
             {

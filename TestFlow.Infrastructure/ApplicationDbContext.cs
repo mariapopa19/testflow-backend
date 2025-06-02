@@ -11,6 +11,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Endpoint> Endpoints => Set<Endpoint>();
     public DbSet<TestRun> TestRuns => Set<TestRun>();
     public DbSet<TestResult> TestResults => Set<TestResult>();
+    public DbSet<TestCase> TestCases => Set<TestCase>();
     public DbSet<FuzzRule> FuzzRules => Set<FuzzRule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -52,5 +53,23 @@ public class ApplicationDbContext : DbContext
             .WithOne(f => f.TestRun)
             .HasForeignKey(f => f.TestRunId)
             .OnDelete(DeleteBehavior.Cascade);
-    }
+
+        modelBuilder.Entity<TestCase>()
+            .HasOne(tc => tc.Endpoint)
+            .WithMany(e => e.TestCases)
+            .HasForeignKey(tc => tc.EndpointId)
+            .OnDelete(DeleteBehavior.Restrict); // or .NoAction
+
+        modelBuilder.Entity<TestCase>()
+            .HasOne(tc => tc.TestRun)
+            .WithMany(tr => tr.TestCases)
+            .HasForeignKey(tc => tc.TestRunId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<TestResult>()
+            .HasOne(tr => tr.TestCase)
+            .WithMany(tc => tc.TestResults)
+            .HasForeignKey(tr => tr.TestCaseId)
+            .OnDelete(DeleteBehavior.SetNull);
+        }
 }

@@ -18,7 +18,8 @@ public static class DependencyInjection
         services.AddScoped<IEndpointRepository, EndpointRepository>();
         services.AddScoped<ITestRunRepository, TestRunRepository>();
         services.AddScoped<ITestResultRepository, TestResultRepository>();
-        
+        services.AddScoped<ITestCaseRepository, TestCaseRepository>();
+
         return services;
     }
 }

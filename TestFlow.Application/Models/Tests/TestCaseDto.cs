@@ -1,6 +1,6 @@
 ﻿namespace TestFlow.Application.Models.Tests
 {
-    public class TestCase
+    public class TestCaseDto
     {
         public string Type { get; set; } = null!;
         public string Input { get; set; } = null!;
