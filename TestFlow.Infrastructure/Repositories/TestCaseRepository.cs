@@ -18,6 +18,12 @@ public class TestCaseRepository : ITestCaseRepository
         await _context.SaveChangesAsync();
     }
 
+    public async Task UpdateAsync(TestCase testCase)
+    {
+        _context.TestCases.Update(testCase);
+        await _context.SaveChangesAsync();
+    }
+
     public async Task<List<TestCase>> GetByEndpointIdAsync(Guid endpointId)
     {
         return await _context.TestCases

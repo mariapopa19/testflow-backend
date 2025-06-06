@@ -156,6 +156,16 @@ namespace TestFlow.Application.Services
 
             var testCases = await _testCaseRepository.GetByEndpointIdAndTestTypeAsync(endpointId, "Validation");
 
+            var testRun = new TestRun
+            {
+                Id = Guid.NewGuid(),
+                EndpointId = endpointId,
+                UserId = userId,
+                StartedAt = DateTime.UtcNow,
+                TestType = "Validation"
+            };
+            await _testRunRepository.AddAsync(testRun);
+
             if (testCases == null || testCases.Count == 0)
             {
                 List<TestCase> generated;
@@ -171,7 +181,8 @@ namespace TestFlow.Application.Services
                             Input = dto.Input,
                             ExpectedStatusCode = dto.ExpectedStatusCode,
                             ExpectedResponse = dto.ExpectedResponse,
-                            CreatedAt = DateTime.UtcNow
+                            CreatedAt = DateTime.UtcNow,
+                            TestRunId = testRun.Id
                         }).ToList();
                 }
                 else
@@ -185,7 +196,8 @@ namespace TestFlow.Application.Services
                             Input = dto.Input,
                             ExpectedStatusCode = dto.ExpectedStatusCode,
                             ExpectedResponse = dto.ExpectedResponse,
-                            CreatedAt = DateTime.UtcNow
+                            CreatedAt = DateTime.UtcNow,
+                            TestRunId = testRun.Id
                         }).ToList();
                 }
                 foreach (var tc in generated)
@@ -194,18 +206,17 @@ namespace TestFlow.Application.Services
                 }
                 testCases = generated;
             }
+            else
+            {
+                // If test cases already exist, update their TestRunId
+                foreach (var tc in testCases)
+                {
+                    tc.TestRunId = testRun.Id;
+                    await _testCaseRepository.UpdateAsync(tc); 
+                }
+            }
 
             var resultDtos = new List<TestResultDto>();
-
-            var testRun = new TestRun
-            {
-                Id = Guid.NewGuid(),
-                EndpointId = endpointId,
-                UserId = userId,
-                StartedAt = DateTime.UtcNow,
-                TestType = "Validation"
-            };
-            await _testRunRepository.AddAsync(testRun);
 
             using var httpClient = new HttpClient();
 
@@ -266,7 +277,7 @@ namespace TestFlow.Application.Services
                 });
             }
 
-            return resultDtos;
+            return resultDtos.Count > 0 ? resultDtos : throw new InvalidOperationException("No test cases generated for Validation tests.");
         }
 
         public async Task<List<TestCaseDto>> GenerateAIFuzzyTestsAsync(Guid endpointId, Guid userId)
@@ -374,7 +385,7 @@ namespace TestFlow.Application.Services
             }
 
             // Map to DTOs
-            var dtos = testCases.Select(tc => new TestCaseDto
+            List<TestCaseDto> dtos = testCases.Select(tc => new TestCaseDto
             {
                 Type = tc.Type,
                 Input = tc.Input,
@@ -382,7 +393,7 @@ namespace TestFlow.Application.Services
                 ExpectedResponse = tc.ExpectedResponse
             }).ToList();
 
-            return dtos;
+            return dtos.Count > 0 ? dtos : throw new InvalidOperationException("No test cases generated for Fuzzy tests.");
         }
 
         public async Task<List<TestResultDto>> RunFuzzyTestsAsync(Guid endpointId, Guid userId, bool artificialInteligence)
@@ -391,6 +402,16 @@ namespace TestFlow.Application.Services
             if (endpoint == null) throw new ArgumentException("Endpoint not found");
 
             var testCases = await _testCaseRepository.GetByEndpointIdAndTestTypeAsync(endpointId, "Fuzzy");
+
+            var testRun = new TestRun
+            {
+                Id = Guid.NewGuid(),
+                EndpointId = endpointId,
+                UserId = userId,
+                StartedAt = DateTime.UtcNow,
+                TestType = "Fuzzy"
+            };
+            await _testRunRepository.AddAsync(testRun);
 
             if (testCases == null || testCases.Count == 0)
             {
@@ -407,7 +428,8 @@ namespace TestFlow.Application.Services
                             Input = dto.Input,
                             ExpectedStatusCode = dto.ExpectedStatusCode,
                             ExpectedResponse = dto.ExpectedResponse,
-                            CreatedAt = DateTime.UtcNow
+                            CreatedAt = DateTime.UtcNow,
+                            TestRunId = testRun.Id
                         }).ToList();
                 }
                 else
@@ -421,7 +443,8 @@ namespace TestFlow.Application.Services
                             Input = dto.Input,
                             ExpectedStatusCode = dto.ExpectedStatusCode,
                             ExpectedResponse = dto.ExpectedResponse,
-                            CreatedAt = DateTime.UtcNow
+                            CreatedAt = DateTime.UtcNow,
+                            TestRunId = testRun.Id
                         }).ToList();
                 }
                 foreach (var tc in generated)
@@ -430,18 +453,17 @@ namespace TestFlow.Application.Services
                 }
 
             }
+            else
+            {
+                // If test cases already exist, update their TestRunId
+                foreach (var tc in testCases)
+                {
+                    tc.TestRunId = testRun.Id;
+                    await _testCaseRepository.UpdateAsync(tc);
+                }
+            }
 
             var resultDtos = new List<TestResultDto>();
-
-            var testRun = new TestRun
-            {
-                Id = Guid.NewGuid(),
-                EndpointId = endpointId,
-                UserId = userId,
-                StartedAt = DateTime.UtcNow,
-                TestType = "Fuzzy"
-            };
-            await _testRunRepository.AddAsync(testRun);
 
             Dictionary<string, string> headers = new();
             if (!string.IsNullOrWhiteSpace(endpoint.HeadersJson))
@@ -480,7 +502,7 @@ namespace TestFlow.Application.Services
                     {
                         test.Type,
                         test.Input,
-                        ExpectedStatusCode = test.ExpectedStatusCode,
+                        test.ExpectedStatusCode,
                         ActualStatusCode = (int)response.StatusCode,
                         ResponseBody = responseBody
                     })
@@ -492,6 +514,7 @@ namespace TestFlow.Application.Services
                 {
                     TestCaseType = test.Type,
                     Input = test.Input,
+                    ExpectedStatusCode = test.ExpectedStatusCode,
                     ActualStatusCode = (int)response.StatusCode,
                     Passed = passed,
                     ResponseBody = responseBody
@@ -572,6 +595,16 @@ namespace TestFlow.Application.Services
 
             var testCases = await _testCaseRepository.GetByEndpointIdAndTestTypeAsync(endpointId, "Functional");
 
+            var testRun = new TestRun
+            {
+                Id = Guid.NewGuid(),
+                EndpointId = endpointId,
+                UserId = userId,
+                StartedAt = DateTime.UtcNow,
+                TestType = "Functional"
+            };
+            await _testRunRepository.AddAsync(testRun);
+
             if (testCases == null || testCases.Count == 0)
             {
                 List<TestCase> generated;
@@ -587,7 +620,8 @@ namespace TestFlow.Application.Services
                             Input = dto.Input,
                             ExpectedStatusCode = dto.ExpectedStatusCode,
                             ExpectedResponse = dto.ExpectedResponse,
-                            CreatedAt = DateTime.UtcNow
+                            CreatedAt = DateTime.UtcNow,
+                            TestRunId = testRun.Id
                         }).ToList();
                 }
                 else
@@ -601,7 +635,8 @@ namespace TestFlow.Application.Services
                             Input = dto.Input,
                             ExpectedStatusCode = dto.ExpectedStatusCode,
                             ExpectedResponse = dto.ExpectedResponse,
-                            CreatedAt = DateTime.UtcNow
+                            CreatedAt = DateTime.UtcNow,
+                            TestRunId = testRun.Id
                         }).ToList();
                 }
                 foreach (var tc in generated)
@@ -610,18 +645,17 @@ namespace TestFlow.Application.Services
                 }
 
             }
+            else
+            {
+                // If test cases already exist, update their TestRunId
+                foreach (var tc in testCases)
+                {
+                    tc.TestRunId = testRun.Id;
+                    await _testCaseRepository.UpdateAsync(tc);
+                }
+            }
 
             var resultDtos = new List<TestResultDto>();
-
-            var testRun = new TestRun
-            {
-                Id = Guid.NewGuid(),
-                EndpointId = endpointId,
-                UserId = userId,
-                StartedAt = DateTime.UtcNow,
-                TestType = "Functional"
-            };
-            await _testRunRepository.AddAsync(testRun);
 
             var headers = !string.IsNullOrWhiteSpace(endpoint.HeadersJson)
                 ? JsonSerializer.Deserialize<Dictionary<string, string>>(endpoint.HeadersJson!) ?? new()
@@ -670,13 +704,14 @@ namespace TestFlow.Application.Services
                 {
                     TestCaseType = test.Type,
                     Input = test.Input,
+                    ExpectedStatusCode = test.ExpectedStatusCode,
                     ActualStatusCode = (int)response.StatusCode,
                     Passed = passed,
                     ResponseBody = responseBody
                 });
             }
 
-            return resultDtos;
+            return resultDtos.Count > 0 ? resultDtos : throw new InvalidOperationException("No test cases generated for Functional tests.");
         }
 
     }
