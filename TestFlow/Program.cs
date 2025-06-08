@@ -2,10 +2,40 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog.Events;
+using Serilog.Sinks.MSSqlServer;
+using Serilog;
 using TestFlow.Application;
 using TestFlow.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Get the same connection string used by your DbContext
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Optional: customize columns if you want
+var columnOptions = new ColumnOptions();
+columnOptions.Store.Remove(StandardColumn.Properties);
+columnOptions.Store.Add(StandardColumn.LogEvent);
+
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information() // Minimum level for all logs
+    .WriteTo.Console()
+    .WriteTo.MSSqlServer(
+        connectionString: connectionString,
+        sinkOptions: new MSSqlServerSinkOptions
+        {
+            TableName = "Logs",
+            AutoCreateSqlTable = true // Set to false if you want to manage the table yourself
+        },
+        restrictedToMinimumLevel: LogEventLevel.Warning, // Only Warning and above go to DB
+        columnOptions: columnOptions
+    )
+    .Enrich.FromLogContext()
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddInApplication();

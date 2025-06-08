@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using TestFlow.Application.Interfaces.Repository;
 using TestFlow.Application.Interfaces.Services;
 using TestFlow.Application.Models.Tests;
@@ -17,6 +18,7 @@ namespace TestFlow.Application.Services
 {
     public class TestCaseGeneratorService : ITestCaseGeneratorService
     {
+        private readonly ILogger<TestCaseGeneratorService> _logger;
         private readonly IEndpointRepository _endpointRepository;
         private readonly ITestRunRepository _testRunRepository;
         private readonly ITestResultRepository _testResultRepository;
@@ -28,19 +30,25 @@ namespace TestFlow.Application.Services
             ITestRunRepository testRunRepository,
             ITestResultRepository testResultRepository,
             IAIClientService aiClientService,
-            ITestCaseRepository testCaseRepository)
-            {
+            ITestCaseRepository testCaseRepository,
+            ILogger<TestCaseGeneratorService> logger)
+        {
             _endpointRepository = endpointRepository;
             _testRunRepository = testRunRepository;
             _testResultRepository = testResultRepository;
             _aiClientService = aiClientService;
             _testCaseRepository = testCaseRepository;
-            }
+            _logger = logger;
+        }
 
         public async Task<List<TestCaseDto>> GenerateValidationTestsAsync(Guid endpointId, Guid userId)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
-            if (endpoint == null) throw new ArgumentException("Endpoint not found");
+            if (endpoint == null)
+            {
+                _logger.LogWarning("Endpoint {EndpointId} not found for user {UserId}", endpointId, userId);
+                throw new ArgumentException("Endpoint not found");
+            }
 
             var testCases = new List<TestCase>();
 
@@ -126,7 +134,11 @@ namespace TestFlow.Application.Services
         public async Task<List<TestCaseDto>> GenerateValidationTestsWithAIAsync(Guid endpointId, Guid userId)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
-            if (endpoint == null) throw new ArgumentException("Endpoint not found");
+            if (endpoint == null)
+            {
+                _logger.LogWarning("Endpoint {EndpointId} not found for user {UserId}", endpointId, userId);
+                throw new ArgumentException("Endpoint not found");
+            }
 
             var prompt = AIResponseHelper.GenerateAIPrompt("validation", endpoint);
 
@@ -156,7 +168,11 @@ namespace TestFlow.Application.Services
         public async Task<List<TestResultDto>> RunValidationTestsAsync(Guid endpointId, Guid userId, bool artificialInteligence)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
-            if (endpoint == null) throw new ArgumentException("Endpoint not found");
+            if (endpoint == null)
+            {
+                _logger.LogWarning("Endpoint {EndpointId} not found for user {UserId}", endpointId, userId);
+                throw new ArgumentException("Endpoint not found");
+            }
 
             var testCases = await _testCaseRepository.GetByEndpointIdAndTestTypeAsync(endpointId, "Validation");
 
@@ -216,7 +232,7 @@ namespace TestFlow.Application.Services
                 foreach (var tc in testCases)
                 {
                     tc.TestRunId = testRun.Id;
-                    await _testCaseRepository.UpdateAsync(tc); 
+                    await _testCaseRepository.UpdateAsync(tc);
                 }
             }
 
@@ -245,28 +261,36 @@ namespace TestFlow.Application.Services
                 {
                     request.Headers.Add(kvp.Key, kvp.Value);
                 }
-
-                var response = await httpClient.SendAsync(request);
+                HttpResponseMessage response = null; // Initialize the variable to avoid CS0165
+                try
+                {
+                    response = await httpClient.SendAsync(request);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send request to {Url}", endpoint.Url);
+                    continue; // Skip to the next test case if an exception occurs
+                }
                 var responseBody = await response.Content.ReadAsStringAsync();
 
                 var passed = test.ExpectedStatusCode?.Contains((int)response.StatusCode) == true;
 
                 var testResult = new TestResult
-                    {
+                {
                     Id = Guid.NewGuid(),
                     TestRunId = testRun.Id,
                     TestCaseId = test.Id, // <-- Link to the test case
                     StartedAt = DateTime.UtcNow,
                     Outcome = passed ? "Pass" : "Fail",
                     Details = JsonSerializer.Serialize(new
-                        {
+                    {
                         test.Type,
                         test.Input,
                         test.ExpectedStatusCode,
                         ActualStatusCode = (int)response.StatusCode,
                         ResponseBody = responseBody
-                        })
-                    };
+                    })
+                };
 
                 await _testResultRepository.AddAsync(testResult);
 
@@ -287,7 +311,11 @@ namespace TestFlow.Application.Services
         public async Task<List<TestCaseDto>> GenerateAIFuzzyTestsAsync(Guid endpointId, Guid userId)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
-            if (endpoint == null) throw new ArgumentException("Endpoint not found");
+            if (endpoint == null)
+            {
+                _logger.LogWarning("Endpoint {EndpointId} not found for user {UserId}", endpointId, userId);
+                throw new ArgumentException("Endpoint not found");
+            }
 
             var prompt = AIResponseHelper.GenerateAIPrompt("fuzzy", endpoint);
 
@@ -317,7 +345,11 @@ namespace TestFlow.Application.Services
         public async Task<List<TestCaseDto>> GenerateFuzzyTestsAsync(Guid endpointId, Guid userId)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
-            if (endpoint == null) throw new ArgumentException("Endpoint not found");
+            if (endpoint == null)
+            {
+                _logger.LogWarning("Endpoint {EndpointId} not found for user {UserId}", endpointId, userId);
+                throw new ArgumentException("Endpoint not found");
+            }
 
             var testCases = new List<TestCase>();
 
@@ -403,7 +435,11 @@ namespace TestFlow.Application.Services
         public async Task<List<TestResultDto>> RunFuzzyTestsAsync(Guid endpointId, Guid userId, bool artificialInteligence)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
-            if (endpoint == null) throw new ArgumentException("Endpoint not found");
+            if (endpoint == null)
+            {
+                _logger.LogWarning("Endpoint {EndpointId} not found for user {UserId}", endpointId, userId);
+                throw new ArgumentException("Endpoint not found");
+            }
 
             var testCases = await _testCaseRepository.GetByEndpointIdAndTestTypeAsync(endpointId, "Fuzzy");
 
@@ -492,7 +528,17 @@ namespace TestFlow.Application.Services
                     request.Headers.TryAddWithoutValidation(header.Key, header.Value);
                 }
 
-                var response = await httpClient.SendAsync(request);
+                HttpResponseMessage response = null; // Initialize the variable to avoid CS0165
+                try
+                {
+                    response = await httpClient.SendAsync(request);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send request to {Url}", endpoint.Url);
+                    continue; // Skip to the next test case if an exception occurs
+                }
+
                 var responseBody = await response.Content.ReadAsStringAsync();
 
                 var passed = test.ExpectedStatusCode?.Contains((int)response.StatusCode) == true;
@@ -531,7 +577,11 @@ namespace TestFlow.Application.Services
         public async Task<List<TestCaseDto>> GenerateFunctionalTestsAsync(Guid endpointId, Guid userId)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
-            if (endpoint == null) throw new ArgumentException("Endpoint not found");
+            if (endpoint == null)
+            {
+                _logger.LogWarning("Endpoint {EndpointId} not found for user {UserId}", endpointId, userId);
+                throw new ArgumentException("Endpoint not found");
+            }
 
             var model = JsonDocument.Parse(endpoint.RequestBodyModel).RootElement;
             var validInput = TestDataFaker.GenerateValidInput(model);
@@ -567,7 +617,11 @@ namespace TestFlow.Application.Services
         public async Task<List<TestCaseDto>> GenerateAIFunctionalTestsAsync(Guid endpointId, Guid userId)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
-            if (endpoint == null) throw new ArgumentException("Endpoint not found");
+            if (endpoint == null)
+            {
+                _logger.LogWarning("Endpoint {EndpointId} not found for user {UserId}", endpointId, userId);
+                throw new ArgumentException("Endpoint not found");
+            }
 
             var prompt = AIResponseHelper.GenerateAIPrompt("functional", endpoint);
 
@@ -595,7 +649,11 @@ namespace TestFlow.Application.Services
         public async Task<List<TestResultDto>> RunFunctionalTestsAsync(Guid endpointId, Guid userId, bool artificialInteligence)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
-            if (endpoint == null) throw new ArgumentException("Endpoint not found");
+            if (endpoint == null)
+            {
+                _logger.LogWarning("Endpoint {EndpointId} not found for user {UserId}", endpointId, userId);
+                throw new ArgumentException("Endpoint not found");
+            }
 
             var testCases = await _testCaseRepository.GetByEndpointIdAndTestTypeAsync(endpointId, "Functional");
 
@@ -682,7 +740,17 @@ namespace TestFlow.Application.Services
                     request.Headers.TryAddWithoutValidation(header.Key, header.Value);
                 }
 
-                var response = await httpClient.SendAsync(request);
+                HttpResponseMessage response = null; // Initialize the variable to avoid CS0165
+                try
+                {
+                    response = await httpClient.SendAsync(request);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send request to {Url}", endpoint.Url);
+                    continue; // Skip to the next test case if an exception occurs
+                }
+
                 var responseBody = await response.Content.ReadAsStringAsync();
 
                 var passed = test.ExpectedStatusCode?.Contains((int)response.StatusCode) == true;
@@ -702,7 +770,15 @@ namespace TestFlow.Application.Services
                     })
                 };
 
-                await _testResultRepository.AddAsync(testResult);
+                try
+                {
+                    await _testResultRepository.AddAsync(testResult);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to save test result for {TestCaseId}", test.Id);
+                    continue; // Skip to the next test case if an exception occurs
+                }
 
                 resultDtos.Add(new TestResultDto
                 {

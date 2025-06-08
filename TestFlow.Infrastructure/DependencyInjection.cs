@@ -15,6 +15,7 @@ public static class DependencyInjection
                 b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
+        services.AddScoped<IAuthenticationRepository, AuthenticationRepository>();
         services.AddScoped<IEndpointRepository, EndpointRepository>();
         services.AddScoped<ITestRunRepository, TestRunRepository>();
         services.AddScoped<ITestResultRepository, TestResultRepository>();

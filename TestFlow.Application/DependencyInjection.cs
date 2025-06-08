@@ -8,6 +8,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInApplication(this IServiceCollection services)
     {
+        services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IEndpointIService, EndpointService>();
         services.AddScoped<ITestCaseGeneratorService, TestCaseGeneratorService>();
         services.AddScoped<IAIClientService, AIClientService>();
