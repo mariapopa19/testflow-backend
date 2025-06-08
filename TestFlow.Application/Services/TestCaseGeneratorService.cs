@@ -52,6 +52,7 @@ namespace TestFlow.Application.Services
                     EndpointId = endpointId,
                     Type = "Validation",
                     Input = string.Empty,
+                    ExpectedResponse = endpoint.ResponseBodyModel,
                     ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "Success"),
                     CreatedAt = DateTime.UtcNow
                 });
@@ -67,6 +68,7 @@ namespace TestFlow.Application.Services
                     EndpointId = endpointId,
                     Type = "Validation",
                     Input = JsonSerializer.Serialize(validInput),
+                    ExpectedResponse = endpoint.ResponseBodyModel,
                     ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "Success"),
                     CreatedAt = DateTime.UtcNow
                 });
@@ -82,6 +84,7 @@ namespace TestFlow.Application.Services
                         EndpointId = endpointId,
                         Type = "Validation",
                         Input = JsonSerializer.Serialize(withoutProp),
+                        ExpectedResponse = endpoint.ResponseBodyModel,
                         ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "ClientError"),
                         CreatedAt = DateTime.UtcNow
                     });
@@ -95,6 +98,7 @@ namespace TestFlow.Application.Services
                         EndpointId = endpointId,
                         Type = "Validation",
                         Input = JsonSerializer.Serialize(corrupted),
+                        ExpectedResponse = endpoint.ResponseBodyModel,
                         ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "ClientError"),
                         CreatedAt = DateTime.UtcNow
                     });
