@@ -13,6 +13,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<TestResult> TestResults => Set<TestResult>();
     public DbSet<TestCase> TestCases => Set<TestCase>();
     public DbSet<FuzzRule> FuzzRules => Set<FuzzRule>();
+    public DbSet<TestReport> TestReports => Set<TestReport>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -71,5 +72,20 @@ public class ApplicationDbContext : DbContext
             .WithMany(tc => tc.TestResults)
             .HasForeignKey(tr => tr.TestCaseId)
             .OnDelete(DeleteBehavior.SetNull);
-        }
+
+        modelBuilder.Entity<TestReport>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne(e => e.TestRun)
+                .WithMany()
+                .HasForeignKey(e => e.TestRunId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
 }

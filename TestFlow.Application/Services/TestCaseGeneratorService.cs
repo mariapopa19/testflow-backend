@@ -261,7 +261,7 @@ namespace TestFlow.Application.Services
                 {
                     request.Headers.Add(kvp.Key, kvp.Value);
                 }
-                HttpResponseMessage response = null; // Initialize the variable to avoid CS0165
+                HttpResponseMessage response = null; 
                 try
                 {
                     response = await httpClient.SendAsync(request);
@@ -269,7 +269,7 @@ namespace TestFlow.Application.Services
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Failed to send request to {Url}", endpoint.Url);
-                    continue; // Skip to the next test case if an exception occurs
+                    continue; 
                 }
                 var responseBody = await response.Content.ReadAsStringAsync();
 
@@ -279,7 +279,7 @@ namespace TestFlow.Application.Services
                 {
                     Id = Guid.NewGuid(),
                     TestRunId = testRun.Id,
-                    TestCaseId = test.Id, // <-- Link to the test case
+                    TestCaseId = test.Id, 
                     StartedAt = DateTime.UtcNow,
                     Outcome = passed ? "Pass" : "Fail",
                     Details = JsonSerializer.Serialize(new
@@ -583,18 +583,37 @@ namespace TestFlow.Application.Services
                 throw new ArgumentException("Endpoint not found");
             }
 
-            var model = JsonDocument.Parse(endpoint.RequestBodyModel).RootElement;
-            var validInput = TestDataFaker.GenerateValidInput(model);
+            var testCases = new List<TestCase>();
 
-            var testCases = new List<TestCase>
+            if (endpoint.HttpMethod.Equals("GET", StringComparison.OrdinalIgnoreCase))
             {
-                new TestCase
+                testCases.Add(new TestCase
                 {
+                    Id = Guid.NewGuid(),
+                    EndpointId = endpointId,
+                    Type = "Functional",
+                    Input = string.Empty,
+                    ExpectedResponse = endpoint.ResponseBodyModel,
+                    ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Functional", endpoint.HttpMethod, "Success"),
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+            else
+            {
+                var model = JsonDocument.Parse(endpoint.RequestBodyModel).RootElement;
+                var validInput = TestDataFaker.GenerateValidInput(model);
+
+                testCases.Add(new TestCase
+                {
+                    Id = Guid.NewGuid(),
+                    EndpointId = endpointId,
                     Type = "Functional",
                     Input = JsonSerializer.Serialize(validInput),
-                    ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Functional", endpoint.HttpMethod, "Success")
-                }
-            };
+                    ExpectedResponse = endpoint.ResponseBodyModel,
+                    ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Functional", endpoint.HttpMethod, "Success"),
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
 
             // Save all test cases to DB
             foreach (var testCase in testCases)
@@ -791,7 +810,16 @@ namespace TestFlow.Application.Services
                 });
             }
 
-            return resultDtos.Count > 0 ? resultDtos : throw new InvalidOperationException("No test cases generated for Functional tests.");
+            try
+            {
+                if(resultDtos.Count < 0) throw new Exception("Result DTOs is empty.");
+
+                return resultDtos;
+            } catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to run functional tests for endpoint {EndpointId}", endpointId);
+                throw new InvalidOperationException("Failed to run functional tests.", ex);
+            }
         }
 
     }
