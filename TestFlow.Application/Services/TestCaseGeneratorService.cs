@@ -296,6 +296,7 @@ namespace TestFlow.Application.Services
 
                 resultDtos.Add(new TestResultDto
                 {
+                    Id = testResult.Id,
                     TestCaseType = test.Type,
                     Input = test.Input,
                     ExpectedStatusCode = test.ExpectedStatusCode,
@@ -562,6 +563,7 @@ namespace TestFlow.Application.Services
 
                 resultDtos.Add(new TestResultDto
                 {
+                    Id = testResult.Id,
                     TestCaseType = test.Type,
                     Input = test.Input,
                     ExpectedStatusCode = test.ExpectedStatusCode,
@@ -801,6 +803,7 @@ namespace TestFlow.Application.Services
 
                 resultDtos.Add(new TestResultDto
                 {
+                    Id = testResult.Id,
                     TestCaseType = test.Type,
                     Input = test.Input,
                     ExpectedStatusCode = test.ExpectedStatusCode,

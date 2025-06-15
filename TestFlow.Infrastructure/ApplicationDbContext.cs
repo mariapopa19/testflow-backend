@@ -73,6 +73,12 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(tr => tr.TestCaseId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        modelBuilder.Entity<TestResult>()
+            .HasOne(tr => tr.Report)
+            .WithMany(r => r.Results)
+            .HasForeignKey(tr => tr.ReportId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         modelBuilder.Entity<TestReport>(entity =>
         {
             entity.HasKey(e => e.Id);

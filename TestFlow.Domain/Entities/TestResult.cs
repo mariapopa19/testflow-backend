@@ -12,5 +12,9 @@ public class TestResult
 
     public string Outcome { get; set; } = null!;  // ex: "Pass", "Fail"
     public string Details { get; set; } = null!;  // JSON or plain error message
+
+    // Add these lines:
+    public Guid? ReportId { get; set; }
+    public TestReport? Report { get; set; }
 }
 

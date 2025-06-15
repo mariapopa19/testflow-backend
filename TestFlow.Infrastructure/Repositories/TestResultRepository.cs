@@ -22,5 +22,14 @@ namespace TestFlow.Infrastructure.Repositories
                 .Where(tr => tr.TestRunId == testRunId)
                 .ToListAsync();
         }
+        public async Task UpdateAsync(TestResult testResult)
+        {
+            await _context.TestResults
+                .Where(tr => tr.Id == testResult.Id)
+                .ExecuteUpdateAsync(tr => tr
+                    .SetProperty(t => t.Outcome, testResult.Outcome)
+                    .SetProperty(t => t.Details, testResult.Details)
+                    .SetProperty(t => t.ReportId, testResult.ReportId));
+        }
     }
 }

@@ -10,6 +10,17 @@ using TestFlow.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:5173", "https://localhost:5173", "http://localhost:5174", "https://localhost:5174")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
 // Get the same connection string used by your DbContext
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -113,13 +124,7 @@ if (app.Environment.IsDevelopment())
     app.UseAuthentication();
     app.UseAuthorization();
 }
-
-app.UseCors(x => x
-                    .AllowAnyMethod()
-                    .AllowAnyHeader()
-                    .SetIsOriginAllowed(origin => true) // allow any origin
-                                                        //.WithOrigins("https://localhost:5173")); // Allow only this origin can also have multiple origins separated with comma
-                    .AllowCredentials()); // allow credentials
+app.UseCors();
 
 app.UseHttpsRedirection();
 

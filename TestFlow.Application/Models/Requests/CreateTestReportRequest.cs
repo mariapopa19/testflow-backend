@@ -10,5 +10,4 @@ public class CreateTestReportRequest
 {
     public Guid TestRunId { get; set; }
     public string TestType { get; set; } = null!;
-    public List<TestResultDto> Results { get; set; } = new();
 }
