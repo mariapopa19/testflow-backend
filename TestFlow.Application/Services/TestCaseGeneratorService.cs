@@ -284,12 +284,13 @@ namespace TestFlow.Application.Services
                     Outcome = passed ? "Pass" : "Fail",
                     Details = JsonSerializer.Serialize(new
                     {
-                        test.Type,
-                        test.Input,
-                        test.ExpectedStatusCode,
+                        TestCaseType = test.Type,
+                        Input = test.Input,
+                        ExpectedStatusCode = test.ExpectedStatusCode,
                         ActualStatusCode = (int)response.StatusCode,
                         ResponseBody = responseBody
                     })
+
                 };
 
                 await _testResultRepository.AddAsync(testResult);
@@ -551,12 +552,13 @@ namespace TestFlow.Application.Services
                     Outcome = passed ? "Pass" : "Fail",
                     Details = JsonSerializer.Serialize(new
                     {
-                        test.Type,
-                        test.Input,
-                        test.ExpectedStatusCode,
+                        TestCaseType = test.Type,
+                        Input = test.Input,
+                        ExpectedStatusCode = test.ExpectedStatusCode,
                         ActualStatusCode = (int)response.StatusCode,
                         ResponseBody = responseBody
                     })
+
                 };
 
                 await _testResultRepository.AddAsync(testResult);
@@ -783,12 +785,13 @@ namespace TestFlow.Application.Services
                     Outcome = passed ? "Pass" : "Fail",
                     Details = JsonSerializer.Serialize(new
                     {
-                        test.Type,
-                        test.Input,
-                        test.ExpectedStatusCode,
+                        TestCaseType = test.Type,
+                        Input = test.Input,
+                        ExpectedStatusCode = test.ExpectedStatusCode,
                         ActualStatusCode = (int)response.StatusCode,
                         ResponseBody = responseBody
                     })
+
                 };
 
                 try

@@ -97,10 +97,13 @@ public class TestReportService : ITestReportService
             FailedTests = report.FailedTests,
             Results = results.Select(result => new TestResultDto
             {
-                Id = result.Id,
-                TestCaseType = result.TestCase?.Type ?? "Unknown",
-                Input = result.TestCase?.Input ?? string.Empty,
-                ExpectedStatusCode = result.TestCase?.ExpectedStatusCode,
+                TestCaseType = result.TestCase != null && !string.IsNullOrWhiteSpace(result.TestCase.Type)
+                    ? result.TestCase.Type
+                    : (GetFromDetails<string>(result.Details, "TestCaseType") ?? "Unknown"),
+                Input = result.TestCase?.Input
+                    ?? (GetFromDetails<string>(result.Details, "Input") ?? string.Empty),
+                ExpectedStatusCode = result.TestCase?.ExpectedStatusCode
+                    ?? (GetFromDetails<List<int>>(result.Details, "ExpectedStatusCode") ?? new List<int>()),
                 ActualStatusCode = GetActualStatusCode(result.Details),
                 Passed = result.Outcome == "Pass",
                 ResponseBody = GetResponseBody(result.Details)
@@ -127,9 +130,13 @@ public class TestReportService : ITestReportService
             FailedTests = r.FailedTests,
             Results = r.Results.Select(result => new TestResultDto
             {
-                TestCaseType = result.TestCase?.Type ?? "Unknown",
-                Input = result.TestCase?.Input ?? string.Empty,
-                ExpectedStatusCode = result.TestCase?.ExpectedStatusCode,
+                TestCaseType = result.TestCase != null && !string.IsNullOrWhiteSpace(result.TestCase.Type)
+                    ? result.TestCase.Type
+                    : (GetFromDetails<string>(result.Details, "TestCaseType") ?? "Unknown"),
+                Input = result.TestCase?.Input
+                    ?? (GetFromDetails<string>(result.Details, "Input") ?? string.Empty),
+                ExpectedStatusCode = result.TestCase?.ExpectedStatusCode
+                    ?? (GetFromDetails<List<int>>(result.Details, "ExpectedStatusCode") ?? new List<int>()),
                 ActualStatusCode = JsonDocument.Parse(result.Details).RootElement.GetProperty("ActualStatusCode").GetInt32(),
                 Passed = result.Outcome == "Pass",
                 ResponseBody = JsonDocument.Parse(result.Details).RootElement.GetProperty("ResponseBody").GetString()
@@ -162,9 +169,13 @@ public class TestReportService : ITestReportService
             FailedTests = report.FailedTests,
             Results = report.Results.Select(result => new TestResultDto
             {
-                TestCaseType = result.TestCase?.Type ?? "Unknown",
-                Input = result.TestCase?.Input ?? string.Empty,
-                ExpectedStatusCode = result.TestCase?.ExpectedStatusCode,
+                TestCaseType = result.TestCase != null && !string.IsNullOrWhiteSpace(result.TestCase.Type)
+                    ? result.TestCase.Type
+                    : (GetFromDetails<string>(result.Details, "TestCaseType") ?? "Unknown"),
+                Input = result.TestCase?.Input
+                    ?? (GetFromDetails<string>(result.Details, "Input") ?? string.Empty),
+                ExpectedStatusCode = result.TestCase?.ExpectedStatusCode
+                    ?? (GetFromDetails<List<int>>(result.Details, "ExpectedStatusCode") ?? new List<int>()),
                 ActualStatusCode = JsonDocument.Parse(result.Details).RootElement.GetProperty("ActualStatusCode").GetInt32(),
                 Passed = result.Outcome == "Pass",
                 ResponseBody = JsonDocument.Parse(result.Details).RootElement.GetProperty("ResponseBody").GetString()
@@ -212,5 +223,27 @@ public class TestReportService : ITestReportService
             _logger.LogError(ex, "Error parsing response body from details: {Details}", details);
             return null;
         }
+    }
+
+    private T? GetFromDetails<T>(string details, string propertyName)
+    {
+        try
+        {
+            var doc = JsonDocument.Parse(details);
+            if (doc.RootElement.TryGetProperty(propertyName, out var prop))
+            {
+                if (typeof(T) == typeof(string))
+                    return (T)(object)prop.GetString()!;
+                if (typeof(T) == typeof(List<int>))
+                {
+                    var list = new List<int>();
+                    foreach (var item in prop.EnumerateArray())
+                        list.Add(item.GetInt32());
+                    return (T)(object)list;
+                }
+            }
+        }
+        catch { }
+        return default;
     }
 }
