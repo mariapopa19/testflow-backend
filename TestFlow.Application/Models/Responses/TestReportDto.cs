@@ -15,5 +15,6 @@ public class TestReportDto
     public int TotalTests { get; set; }
     public int PassedTests { get; set; }
     public int FailedTests { get; set; }
+    public string EndpointName { get; set; } = null!;
     public List<TestResultDto> Results { get; set; } = new();
 }

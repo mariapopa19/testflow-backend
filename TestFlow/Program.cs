@@ -7,6 +7,8 @@ using Serilog.Sinks.MSSqlServer;
 using Serilog;
 using TestFlow.Application;
 using TestFlow.Infrastructure;
+using System.Reflection;
+using TestFlow.Application.Mapping;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -78,10 +80,15 @@ builder.Services.AddAuthentication(options =>
 // Add services to the container.
 builder.Services.AddHttpClient();
 builder.Services.AddControllers();
+// After builder.Services.AddControllers();
+builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
+
+    // Fix for CS0121: Specify the overload explicitly by using the generic type parameter version of AddAutoMapper.
+    //builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "TestFlow API", Version = "v1" });
 
     // 🔐 Add JWT Bearer scheme

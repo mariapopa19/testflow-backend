@@ -16,7 +16,9 @@ public class TestReportRepository : ITestReportRepository
     {
         return await _context.TestReports
             .Include(r => r.TestRun)
+                .ThenInclude(tr => tr.Endpoint)
             .Include(r => r.Results)
+                .ThenInclude(tr => tr.TestCase)
             .Where(r => r.UserId == userId)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
@@ -26,7 +28,9 @@ public class TestReportRepository : ITestReportRepository
     {
         return await _context.TestReports
             .Include(r => r.TestRun)
+                .ThenInclude(tr => tr.Endpoint) // <-- Ensure this is included
             .Include(r => r.Results)
+                .ThenInclude(tr => tr.TestCase)
             .FirstOrDefaultAsync(r => r.Id == id);
     }
 

@@ -22,18 +22,27 @@ namespace TestFlow.Infrastructure.Repositories
         public async Task<List<TestRun>> GetByUserIdAsync(Guid userId)
         {
             return await _context.TestRuns
+                .Include(tr => tr.Endpoint)
+                .Include(tr => tr.Results)
+                .ThenInclude(r => r.TestCase)
                 .Where(tr => tr.UserId == userId)
                 .ToListAsync();
         }
         public async Task<TestRun?> GetByIdAsync(Guid id, Guid userId)
         {
             return await _context.TestRuns
+                .Include(tr => tr.Endpoint)
+                .Include(tr => tr.Results)
+                .ThenInclude(r => r.TestCase)
                 .Where(tr => tr.UserId == userId && tr.Id == id)
                 .FirstOrDefaultAsync();
         }
         public async Task<List<TestRun>> GetByEndpointIdAsync(Guid endpointId)
         {
             return await _context.TestRuns
+                .Include(tr => tr.Endpoint)
+                .Include(tr => tr.Results)
+                .ThenInclude(r => r.TestCase)
                 .Where(tr => tr.EndpointId == endpointId)
                 .ToListAsync();
         }

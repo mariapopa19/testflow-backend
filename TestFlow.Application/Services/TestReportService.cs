@@ -95,11 +95,13 @@ public class TestReportService : ITestReportService
             TotalTests = report.TotalTests,
             PassedTests = report.PassedTests,
             FailedTests = report.FailedTests,
+            EndpointName = report.TestRun?.Endpoint?.Name ?? string.Empty, // <-- Add this
             Results = results.Select(result => new TestResultDto
             {
+                Id = result.Id,
                 TestCaseType = result.TestCase != null && !string.IsNullOrWhiteSpace(result.TestCase.Type)
                     ? result.TestCase.Type
-                    : (GetFromDetails<string>(result.Details, "TestCaseType") ?? "Unknown"),
+                    : (GetFromDetails<string>(result.Details, "Type") ?? "Unknown"),
                 Input = result.TestCase?.Input
                     ?? (GetFromDetails<string>(result.Details, "Input") ?? string.Empty),
                 ExpectedStatusCode = result.TestCase?.ExpectedStatusCode
@@ -128,11 +130,14 @@ public class TestReportService : ITestReportService
             TotalTests = r.TotalTests,
             PassedTests = r.PassedTests,
             FailedTests = r.FailedTests,
+            EndpointName = r.TestRun?.Endpoint?.Name ?? string.Empty, // <-- Add this
+
             Results = r.Results.Select(result => new TestResultDto
             {
+                Id = result.Id,
                 TestCaseType = result.TestCase != null && !string.IsNullOrWhiteSpace(result.TestCase.Type)
                     ? result.TestCase.Type
-                    : (GetFromDetails<string>(result.Details, "TestCaseType") ?? "Unknown"),
+                    : (GetFromDetails<string>(result.Details, "Type") ?? "Unknown"),
                 Input = result.TestCase?.Input
                     ?? (GetFromDetails<string>(result.Details, "Input") ?? string.Empty),
                 ExpectedStatusCode = result.TestCase?.ExpectedStatusCode
@@ -167,11 +172,14 @@ public class TestReportService : ITestReportService
             TotalTests = report.TotalTests,
             PassedTests = report.PassedTests,
             FailedTests = report.FailedTests,
+            EndpointName = report.TestRun?.Endpoint?.Name ?? string.Empty, // <-- Add this
             Results = report.Results.Select(result => new TestResultDto
             {
+                Id = result.Id,
                 TestCaseType = result.TestCase != null && !string.IsNullOrWhiteSpace(result.TestCase.Type)
-                    ? result.TestCase.Type
-                    : (GetFromDetails<string>(result.Details, "TestCaseType") ?? "Unknown"),
+    ? result.TestCase.Type
+    : (GetFromDetails<string>(result.Details, "Type") ?? "Unknown"),
+
                 Input = result.TestCase?.Input
                     ?? (GetFromDetails<string>(result.Details, "Input") ?? string.Empty),
                 ExpectedStatusCode = result.TestCase?.ExpectedStatusCode

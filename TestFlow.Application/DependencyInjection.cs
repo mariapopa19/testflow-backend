@@ -13,6 +13,7 @@ public static class DependencyInjection
         services.AddScoped<ITestCaseGeneratorService, TestCaseGeneratorService>();
         services.AddScoped<IAIClientService, AIClientService>();
         services.AddScoped<ITestReportService, TestReportService>();
+        services.AddScoped<ITestRunService, TestRunService>();
 
         // You can register logging, caching, messaging, etc. here too
         return services;
