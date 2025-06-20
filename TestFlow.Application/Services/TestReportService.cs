@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using TestFlow.Application.Interfaces.Repository;
 using TestFlow.Application.Interfaces.Services;
@@ -18,17 +19,20 @@ public class TestReportService : ITestReportService
     private readonly ITestRunRepository _testRunRepository;
     private readonly ITestResultRepository _testResultRepository;
     private readonly ILogger<TestReportService> _logger;
+    private readonly IMapper _mapper;
 
     public TestReportService(
         ITestReportRepository reportRepository,
         ITestRunRepository testRunRepository,
         ITestResultRepository testResultRepository,
-        ILogger<TestReportService> logger)
+        ILogger<TestReportService> logger,
+        IMapper mapper)
     {
         _reportRepository = reportRepository;
         _testRunRepository = testRunRepository;
         _testResultRepository = testResultRepository;
         _logger = logger;
+        _mapper = mapper;
     }
 
     public async Task<TestReportDto> GenerateReportFromTestRunAsync(Guid testRunId, Guid userId)
@@ -84,33 +88,8 @@ public class TestReportService : ITestReportService
             throw;
         }
 
-
-        // Create and return the DTO directly
-        return new TestReportDto
-        {
-            Id = report.Id,
-            TestRunId = report.TestRunId,
-            TestType = report.TestType,
-            CreatedAt = report.CreatedAt,
-            TotalTests = report.TotalTests,
-            PassedTests = report.PassedTests,
-            FailedTests = report.FailedTests,
-            EndpointName = report.TestRun?.Endpoint?.Name ?? string.Empty, // <-- Add this
-            Results = results.Select(result => new TestResultDto
-            {
-                Id = result.Id,
-                TestCaseType = result.TestCase != null && !string.IsNullOrWhiteSpace(result.TestCase.Type)
-                    ? result.TestCase.Type
-                    : (GetFromDetails<string>(result.Details, "Type") ?? "Unknown"),
-                Input = result.TestCase?.Input
-                    ?? (GetFromDetails<string>(result.Details, "Input") ?? string.Empty),
-                ExpectedStatusCode = result.TestCase?.ExpectedStatusCode
-                    ?? (GetFromDetails<List<int>>(result.Details, "ExpectedStatusCode") ?? new List<int>()),
-                ActualStatusCode = GetActualStatusCode(result.Details),
-                Passed = result.Outcome == "Pass",
-                ResponseBody = GetResponseBody(result.Details)
-            }).ToList()
-        };
+        var savedReport = await _reportRepository.GetByIdAsync(report.Id);
+        return _mapper.Map<TestReportDto>(savedReport);
     }
 
 
@@ -121,32 +100,7 @@ public class TestReportService : ITestReportService
         var reports = await _reportRepository.GetAllAsync(userId);
         _logger.LogInformation("Found {Count} test reports for user {UserId}", reports.Count, userId);
 
-        return reports.Select(r => new TestReportDto
-        {
-            Id = r.Id,
-            TestRunId = r.TestRunId,
-            TestType = r.TestType,
-            CreatedAt = r.CreatedAt,
-            TotalTests = r.TotalTests,
-            PassedTests = r.PassedTests,
-            FailedTests = r.FailedTests,
-            EndpointName = r.TestRun?.Endpoint?.Name ?? string.Empty, // <-- Add this
-
-            Results = r.Results.Select(result => new TestResultDto
-            {
-                Id = result.Id,
-                TestCaseType = result.TestCase != null && !string.IsNullOrWhiteSpace(result.TestCase.Type)
-                    ? result.TestCase.Type
-                    : (GetFromDetails<string>(result.Details, "Type") ?? "Unknown"),
-                Input = result.TestCase?.Input
-                    ?? (GetFromDetails<string>(result.Details, "Input") ?? string.Empty),
-                ExpectedStatusCode = result.TestCase?.ExpectedStatusCode
-                    ?? (GetFromDetails<List<int>>(result.Details, "ExpectedStatusCode") ?? new List<int>()),
-                ActualStatusCode = JsonDocument.Parse(result.Details).RootElement.GetProperty("ActualStatusCode").GetInt32(),
-                Passed = result.Outcome == "Pass",
-                ResponseBody = JsonDocument.Parse(result.Details).RootElement.GetProperty("ResponseBody").GetString()
-            }).ToList()
-        }).ToList();
+        return _mapper.Map<List<TestReportDto>>(reports);
     }
 
     public async Task<TestReportDto?> GetReportByIdAsync(Guid id)
@@ -163,32 +117,8 @@ public class TestReportService : ITestReportService
         _logger.LogInformation("Successfully retrieved test report {ReportId}", id);
 
 
-        return new TestReportDto
-        {
-            Id = report.Id,
-            TestRunId = report.TestRunId,
-            TestType = report.TestType,
-            CreatedAt = report.CreatedAt,
-            TotalTests = report.TotalTests,
-            PassedTests = report.PassedTests,
-            FailedTests = report.FailedTests,
-            EndpointName = report.TestRun?.Endpoint?.Name ?? string.Empty, // <-- Add this
-            Results = report.Results.Select(result => new TestResultDto
-            {
-                Id = result.Id,
-                TestCaseType = result.TestCase != null && !string.IsNullOrWhiteSpace(result.TestCase.Type)
-    ? result.TestCase.Type
-    : (GetFromDetails<string>(result.Details, "Type") ?? "Unknown"),
+        return _mapper.Map<TestReportDto>(report);
 
-                Input = result.TestCase?.Input
-                    ?? (GetFromDetails<string>(result.Details, "Input") ?? string.Empty),
-                ExpectedStatusCode = result.TestCase?.ExpectedStatusCode
-                    ?? (GetFromDetails<List<int>>(result.Details, "ExpectedStatusCode") ?? new List<int>()),
-                ActualStatusCode = JsonDocument.Parse(result.Details).RootElement.GetProperty("ActualStatusCode").GetInt32(),
-                Passed = result.Outcome == "Pass",
-                ResponseBody = JsonDocument.Parse(result.Details).RootElement.GetProperty("ResponseBody").GetString()
-            }).ToList()
-        };
     }
 
     public async Task<bool> DeleteAsync(Guid id, Guid userId)
@@ -205,53 +135,5 @@ public class TestReportService : ITestReportService
         await _reportRepository.DeleteAsync(id);
         _logger.LogInformation("Test report {ReportId} deleted successfully", id);
         return true;
-    }
-
-    private int GetActualStatusCode(string details)
-    {
-        try
-        {
-            return int.Parse(JsonDocument.Parse(details).RootElement.GetProperty("ActualStatusCode").GetString() ?? "0");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error parsing actual status code from details: {Details}", details);
-            return 0;
-        }
-    }
-
-    private string? GetResponseBody(string details)
-    {
-        try
-        {
-            return JsonDocument.Parse(details).RootElement.GetProperty("ResponseBody").GetString();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error parsing response body from details: {Details}", details);
-            return null;
-        }
-    }
-
-    private T? GetFromDetails<T>(string details, string propertyName)
-    {
-        try
-        {
-            var doc = JsonDocument.Parse(details);
-            if (doc.RootElement.TryGetProperty(propertyName, out var prop))
-            {
-                if (typeof(T) == typeof(string))
-                    return (T)(object)prop.GetString()!;
-                if (typeof(T) == typeof(List<int>))
-                {
-                    var list = new List<int>();
-                    foreach (var item in prop.EnumerateArray())
-                        list.Add(item.GetInt32());
-                    return (T)(object)list;
-                }
-            }
-        }
-        catch { }
-        return default;
     }
 }
