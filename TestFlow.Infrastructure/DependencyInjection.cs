@@ -2,6 +2,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TestFlow.Application.Interfaces.Repository;
+using TestFlow.Application.Interfaces.Services;
+using TestFlow.Application.Services;
 using TestFlow.Infrastructure.Repositories;
 
 namespace TestFlow.Infrastructure;
@@ -21,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<ITestResultRepository, TestResultRepository>();
         services.AddScoped<ITestCaseRepository, TestCaseRepository>();
         services.AddScoped<ITestReportRepository, TestReportRepository>();
+        services.AddScoped<IDashboardService, DashboardService>();
 
         return services;
     }

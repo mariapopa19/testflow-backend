@@ -51,5 +51,21 @@ namespace TestFlow.Infrastructure.Repositories
             return await _context.TestRuns
                 .ToListAsync();
         }
+        public async Task<int> CountByUserAsync(Guid userId)
+        {
+            return await _context.TestRuns.CountAsync(tr => tr.UserId == userId);
+        }
+
+        public async Task<List<TestRun>> GetByUserIdSinceAsync(Guid userId, DateTime since)
+        {
+            return await _context.TestRuns
+                .Where(tr => tr.UserId == userId && tr.StartedAt >= since)
+                .ToListAsync();
+        }
+        public async Task UpdateAsync(TestRun run)
+        {
+            _context.TestRuns.Update(run);
+            await _context.SaveChangesAsync();
+        }
     }
 }

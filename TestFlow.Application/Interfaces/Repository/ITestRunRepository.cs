@@ -14,5 +14,8 @@ namespace TestFlow.Application.Interfaces.Repository
         Task<List<TestRun>> GetByEndpointIdAsync(Guid endpointId);
         Task<List<TestRun>> GetByUserIdAsync(Guid userId);
         Task<List<TestRun>> GetAllAsync();
+        Task<int> CountByUserAsync(Guid userId);
+        Task<List<TestRun>> GetByUserIdSinceAsync(Guid userId, DateTime since);
+        Task UpdateAsync(TestRun testRun);
     }
 }

@@ -9,5 +9,6 @@ public class TestRunDto
     public string TestType { get; set; } = string.Empty;
     public DateTime StartedAt { get; set; }
     public List<TestResultDto> Results { get; set; } = new();
+    public TimeSpan? Duration { get; set; }
 
 }

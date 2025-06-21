@@ -13,4 +13,6 @@ public interface ITestReportService
     Task<List<TestReportDto>> GetAllReportsAsync(Guid userId);
     Task<TestReportDto?> GetReportByIdAsync(Guid id);
     Task<bool> DeleteAsync(Guid id, Guid userId);
+    Task<List<TestReportDto>> GetRecentReportsAsync(Guid userId, int limit);
+
 }

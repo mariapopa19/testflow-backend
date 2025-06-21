@@ -15,5 +15,6 @@ namespace TestFlow.Application.Models.Tests
         public int ActualStatusCode { get; set; }
         public bool Passed { get; set; }
         public string? ResponseBody { get; set; }
+        public TimeSpan? Duration { get; set; }
     }
 }

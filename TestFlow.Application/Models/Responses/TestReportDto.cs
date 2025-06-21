@@ -16,5 +16,6 @@ public class TestReportDto
     public int PassedTests { get; set; }
     public int FailedTests { get; set; }
     public string EndpointName { get; set; } = null!;
+    public TimeSpan? Duration { get; set; }
     public List<TestResultDto> Results { get; set; } = new();
 }

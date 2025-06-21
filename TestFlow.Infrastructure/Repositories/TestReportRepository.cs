@@ -12,6 +12,12 @@ public class TestReportRepository : ITestReportRepository
         _context = context;
     }
 
+    public async Task<IDisposable> BeginTransactionAsync()
+    {
+        var transaction = await _context.Database.BeginTransactionAsync();
+        return transaction;
+    }
+
     public async Task<List<TestReport>> GetAllAsync(Guid userId)
     {
         return await _context.TestReports
@@ -28,10 +34,19 @@ public class TestReportRepository : ITestReportRepository
     {
         return await _context.TestReports
             .Include(r => r.TestRun)
-                .ThenInclude(tr => tr.Endpoint) // <-- Ensure this is included
+                .ThenInclude(tr => tr.Endpoint) 
             .Include(r => r.Results)
                 .ThenInclude(tr => tr.TestCase)
             .FirstOrDefaultAsync(r => r.Id == id);
+    }
+
+    public async Task<List<TestReport>> GetRecentByUserAsync(Guid userId, int limit)
+    {
+        return await _context.TestReports
+            .Where(r => r.UserId == userId)
+            .OrderByDescending(r => r.CreatedAt)
+            .Take(limit)
+            .ToListAsync();
     }
 
     public async Task<TestReport> CreateAsync(TestReport report)

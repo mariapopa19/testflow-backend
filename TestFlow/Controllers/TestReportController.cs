@@ -68,4 +68,14 @@ public class TestReportController : ControllerBase
 
         return NoContent();
     }
+
+    [HttpGet("recent")]
+    public async Task<ActionResult<List<TestReportDto>>> GetRecent([FromQuery] int limit = 5)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userId is null) return Unauthorized();
+
+        var reports = await _testReportService.GetRecentReportsAsync(Guid.Parse(userId), limit);
+        return Ok(reports);
+    }
 }

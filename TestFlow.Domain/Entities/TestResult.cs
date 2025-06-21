@@ -8,7 +8,9 @@ public class TestResult
     public Guid? TestCaseId { get; set; } // Nullable if some results may not be linked to a test case
     public TestCase? TestCase { get; set; }
 
-    public DateTime? StartedAt { get; set; } = null!;
+    public DateTime StartedAt { get; set; }
+    public DateTime? FinishedAt { get; set; }
+    public TimeSpan? Duration { get; set; }
 
     public string Outcome { get; set; } = null!;  // ex: "Pass", "Fail"
     public string Details { get; set; } = null!;  // JSON or plain error message

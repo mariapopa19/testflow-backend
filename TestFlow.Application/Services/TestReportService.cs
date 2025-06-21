@@ -5,6 +5,8 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using TestFlow.Application.Interfaces.Repository;
 using TestFlow.Application.Interfaces.Services;
@@ -37,6 +39,8 @@ public class TestReportService : ITestReportService
 
     public async Task<TestReportDto> GenerateReportFromTestRunAsync(Guid testRunId, Guid userId)
     {
+        using var transaction = await _reportRepository.BeginTransactionAsync();
+
         _logger.LogInformation("Generating report for test run {TestRunId} for user {UserId}", testRunId, userId);
 
         var testRun = await _testRunRepository.GetByIdAsync(testRunId, userId);
@@ -79,8 +83,7 @@ public class TestReportService : ITestReportService
                 result.ReportId = report.Id;
                 await _testResultRepository.UpdateAsync(result);
             }
-
-            // ... (rest of your logic)
+            await ((IDbContextTransaction)transaction).CommitAsync();
         }
         catch (Exception ex)
         {
@@ -89,7 +92,13 @@ public class TestReportService : ITestReportService
         }
 
         var savedReport = await _reportRepository.GetByIdAsync(report.Id);
-        return _mapper.Map<TestReportDto>(savedReport);
+        var reportDto = _mapper.Map<TestReportDto>(savedReport);
+
+        // Sum durations of all test results (handle nulls)
+        reportDto.Duration = savedReport?.Results?.Where(r => r.Duration.HasValue).Select(r => r.Duration!.Value).DefaultIfEmpty(TimeSpan.Zero).Aggregate((a, b) => a + b);
+
+
+        return reportDto;
     }
 
 
@@ -100,7 +109,21 @@ public class TestReportService : ITestReportService
         var reports = await _reportRepository.GetAllAsync(userId);
         _logger.LogInformation("Found {Count} test reports for user {UserId}", reports.Count, userId);
 
-        return _mapper.Map<List<TestReportDto>>(reports);
+        var reportDtos = _mapper.Map<List<TestReportDto>>(reports);
+
+        // Set Duration for each report DTO
+        for (int i = 0; i < reports.Count; i++)
+        {
+            var report = reports[i];
+            var dto = reportDtos[i];
+            dto.Duration = report?.Results?
+                .Where(r => r.Duration.HasValue)
+                .Select(r => r.Duration!.Value)
+                .DefaultIfEmpty(TimeSpan.Zero)
+                .Aggregate((a, b) => a + b);
+        }
+
+        return reportDtos;
     }
 
     public async Task<TestReportDto?> GetReportByIdAsync(Guid id)
@@ -117,7 +140,10 @@ public class TestReportService : ITestReportService
         _logger.LogInformation("Successfully retrieved test report {ReportId}", id);
 
 
-        return _mapper.Map<TestReportDto>(report);
+        var reportDto = _mapper.Map<TestReportDto>(report);
+        reportDto.Duration = report.Results?.Where(r => r.Duration.HasValue).Select(r => r.Duration.Value).DefaultIfEmpty(TimeSpan.Zero).Aggregate((a, b) => a + b);
+
+        return reportDto;
 
     }
 
@@ -136,4 +162,11 @@ public class TestReportService : ITestReportService
         _logger.LogInformation("Test report {ReportId} deleted successfully", id);
         return true;
     }
+
+    public async Task<List<TestReportDto>> GetRecentReportsAsync(Guid userId, int limit)
+    {
+        var reports = await _reportRepository.GetRecentByUserAsync(userId, limit);
+        return _mapper.Map<List<TestReportDto>>(reports);
+    }
+
 }

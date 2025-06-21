@@ -29,6 +29,11 @@ public class EndpointRepository : IEndpointRepository
             .FirstOrDefaultAsync();
     }
 
+    public async Task<int> CountByUserAsync(Guid userId)
+    {
+        return await _context.Endpoints.CountAsync(e => e.UserId == userId);
+    }
+
     public async Task AddAsync(Endpoint endpoint)
     {
         await _context.Endpoints.AddAsync(endpoint);

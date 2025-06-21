@@ -22,6 +22,13 @@ namespace TestFlow.Infrastructure.Repositories
                 .Where(tr => tr.TestRunId == testRunId)
                 .ToListAsync();
         }
+        public async Task<List<TestResult>> GetByUserIdAsync(Guid userId)
+        {
+            return await _context.TestResults
+                .Include(tr => tr.TestRun)
+                .Where(tr => tr.TestRun.UserId == userId)
+                .ToListAsync();
+        }
         public async Task UpdateAsync(TestResult testResult)
         {
             await _context.TestResults

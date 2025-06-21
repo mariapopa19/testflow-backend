@@ -176,12 +176,13 @@ namespace TestFlow.Application.Services
 
             var testCases = await _testCaseRepository.GetByEndpointIdAndTestTypeAsync(endpointId, "Validation");
 
+            var startTime = DateTime.UtcNow;
             var testRun = new TestRun
             {
                 Id = Guid.NewGuid(),
                 EndpointId = endpointId,
                 UserId = userId,
-                StartedAt = DateTime.UtcNow,
+                StartedAt = startTime,
                 TestType = "Validation"
             };
             await _testRunRepository.AddAsync(testRun);
@@ -271,6 +272,8 @@ namespace TestFlow.Application.Services
                     _logger.LogError(ex, "Failed to send request to {Url}", endpoint.Url);
                     continue; 
                 }
+                var endTime = DateTime.UtcNow;
+
                 var responseBody = await response.Content.ReadAsStringAsync();
 
                 var passed = test.ExpectedStatusCode?.Contains((int)response.StatusCode) == true;
@@ -279,8 +282,10 @@ namespace TestFlow.Application.Services
                 {
                     Id = Guid.NewGuid(),
                     TestRunId = testRun.Id,
-                    TestCaseId = test.Id, 
-                    StartedAt = DateTime.UtcNow,
+                    TestCaseId = test.Id,
+                    StartedAt = startTime,
+                    FinishedAt = endTime,
+                    Duration = endTime - startTime,
                     Outcome = passed ? "Pass" : "Fail",
                     Details = JsonSerializer.Serialize(new
                     {
@@ -303,11 +308,26 @@ namespace TestFlow.Application.Services
                     ExpectedStatusCode = test.ExpectedStatusCode,
                     ActualStatusCode = (int)response.StatusCode,
                     Passed = passed,
-                    ResponseBody = responseBody
+                    ResponseBody = responseBody,
+                    Duration = testResult.Duration
                 });
             }
 
-            return resultDtos.Count > 0 ? resultDtos : throw new InvalidOperationException("No test cases generated for Validation tests.");
+            testRun.FinishedAt = DateTime.UtcNow;
+            testRun.Duration = testRun.FinishedAt - testRun.StartedAt;
+            await _testRunRepository.UpdateAsync(testRun);
+
+            try
+            {
+                if (resultDtos.Count <= 0) throw new Exception("Result DTOs is empty.");
+
+                return resultDtos;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to run functional tests for endpoint {EndpointId}", endpointId);
+                throw new InvalidOperationException("Failed to run functional tests.", ex);
+            }
         }
 
         public async Task<List<TestCaseDto>> GenerateAIFuzzyTestsAsync(Guid endpointId, Guid userId)
@@ -445,12 +465,13 @@ namespace TestFlow.Application.Services
 
             var testCases = await _testCaseRepository.GetByEndpointIdAndTestTypeAsync(endpointId, "Fuzzy");
 
+            var startTime = DateTime.UtcNow;
             var testRun = new TestRun
             {
                 Id = Guid.NewGuid(),
                 EndpointId = endpointId,
                 UserId = userId,
-                StartedAt = DateTime.UtcNow,
+                StartedAt = startTime,
                 TestType = "Fuzzy"
             };
             await _testRunRepository.AddAsync(testRun);
@@ -541,6 +562,8 @@ namespace TestFlow.Application.Services
                     continue; // Skip to the next test case if an exception occurs
                 }
 
+                var endTime = DateTime.UtcNow;
+
                 var responseBody = await response.Content.ReadAsStringAsync();
 
                 var passed = test.ExpectedStatusCode?.Contains((int)response.StatusCode) == true;
@@ -550,6 +573,9 @@ namespace TestFlow.Application.Services
                     Id = Guid.NewGuid(),
                     TestRunId = testRun.Id,
                     Outcome = passed ? "Pass" : "Fail",
+                    StartedAt = startTime,
+                    FinishedAt = endTime,
+                    Duration = endTime - startTime,
                     Details = JsonSerializer.Serialize(new
                     {
                         TestCaseType = test.Type,
@@ -571,11 +597,26 @@ namespace TestFlow.Application.Services
                     ExpectedStatusCode = test.ExpectedStatusCode,
                     ActualStatusCode = (int)response.StatusCode,
                     Passed = passed,
-                    ResponseBody = responseBody
+                    ResponseBody = responseBody,
+                    Duration = testResult.Duration
                 });
             }
 
-            return resultDtos;
+            testRun.FinishedAt = DateTime.UtcNow;
+            testRun.Duration = testRun.FinishedAt - testRun.StartedAt;
+            await _testRunRepository.UpdateAsync(testRun);
+
+            try
+            {
+                if (resultDtos.Count <= 0) throw new Exception("Result DTOs is empty.");
+
+                return resultDtos;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to run functional tests for endpoint {EndpointId}", endpointId);
+                throw new InvalidOperationException("Failed to run functional tests.", ex);
+            }
         }
 
         public async Task<List<TestCaseDto>> GenerateFunctionalTestsAsync(Guid endpointId, Guid userId)
@@ -680,12 +721,13 @@ namespace TestFlow.Application.Services
 
             var testCases = await _testCaseRepository.GetByEndpointIdAndTestTypeAsync(endpointId, "Functional");
 
+            var startTime = DateTime.UtcNow;
             var testRun = new TestRun
             {
                 Id = Guid.NewGuid(),
                 EndpointId = endpointId,
                 UserId = userId,
-                StartedAt = DateTime.UtcNow,
+                StartedAt = startTime,
                 TestType = "Functional"
             };
             await _testRunRepository.AddAsync(testRun);
@@ -773,6 +815,7 @@ namespace TestFlow.Application.Services
                     _logger.LogError(ex, "Failed to send request to {Url}", endpoint.Url);
                     continue; // Skip to the next test case if an exception occurs
                 }
+                var endTime = DateTime.UtcNow;
 
                 var responseBody = await response.Content.ReadAsStringAsync();
 
@@ -783,6 +826,9 @@ namespace TestFlow.Application.Services
                     Id = Guid.NewGuid(),
                     TestRunId = testRun.Id,
                     Outcome = passed ? "Pass" : "Fail",
+                    StartedAt = startTime,
+                    FinishedAt = endTime,
+                    Duration = endTime - startTime,
                     Details = JsonSerializer.Serialize(new
                     {
                         TestCaseType = test.Type,
@@ -812,16 +858,22 @@ namespace TestFlow.Application.Services
                     ExpectedStatusCode = test.ExpectedStatusCode,
                     ActualStatusCode = (int)response.StatusCode,
                     Passed = passed,
-                    ResponseBody = responseBody
+                    ResponseBody = responseBody,
+                    Duration = testResult.Duration
                 });
             }
 
+            testRun.FinishedAt = DateTime.UtcNow;
+            testRun.Duration = testRun.FinishedAt - testRun.StartedAt;
+            await _testRunRepository.UpdateAsync(testRun);
+
             try
             {
-                if(resultDtos.Count < 0) throw new Exception("Result DTOs is empty.");
+                if (resultDtos.Count <= 0) throw new Exception("Result DTOs is empty.");
 
                 return resultDtos;
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to run functional tests for endpoint {EndpointId}", endpointId);
                 throw new InvalidOperationException("Failed to run functional tests.", ex);

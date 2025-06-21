@@ -11,6 +11,7 @@ namespace TestFlow.Application.Interfaces.Repository
     {
         Task AddAsync(TestResult testResult);
         Task<List<TestResult>> GetByTestRunIdAsync(Guid testRunId);
+        Task<List<TestResult>> GetByUserIdAsync(Guid userId);
         Task UpdateAsync(TestResult testResult);
     }
 }

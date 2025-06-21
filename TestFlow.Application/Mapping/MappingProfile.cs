@@ -34,18 +34,22 @@ namespace TestFlow.Application.Mapping
                 .ForMember(dest => dest.Passed, opt =>
                     opt.MapFrom(src => src.Outcome == "Pass"))
                 .ForMember(dest => dest.ResponseBody, opt =>
-                    opt.MapFrom(src => GetResponseBody(src.Details)));
+                    opt.MapFrom(src => GetResponseBody(src.Details)))
+                .ForMember(dest => dest.Duration, opt => opt.MapFrom(src => src.Duration));
+            
 
             // TestReport -> TestReportDto  
             CreateMap<TestReport, TestReportDto>()
                 .ForMember(dest => dest.EndpointName, opt =>
                     opt.MapFrom(src => src.TestRun != null && src.TestRun.Endpoint != null
                         ? src.TestRun.Endpoint.Name
-                        : string.Empty));
+                        : string.Empty))
+                .ForMember(dest => dest.Results, opt => opt.MapFrom(src => src.Results));
 
             CreateMap<TestRun, TestRunDto>()
                 .ForMember(dest => dest.EndpointName, opt => opt.MapFrom(src => src.Endpoint.Name))
-                .ForMember(dest => dest.Results, opt => opt.MapFrom(src => src.Results));
+                .ForMember(dest => dest.Results, opt => opt.MapFrom(src => src.Results))
+                .ForMember(dest => dest.Duration, opt => opt.MapFrom(src => src.Duration));
         }
         // Helper methods for mapping from Details JSON  
         private static T? GetFromDetails<T>(string details, string propertyName)

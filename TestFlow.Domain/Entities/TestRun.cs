@@ -9,6 +9,8 @@ public class TestRun
     public User User { get; set; } = null!;
 
     public DateTime StartedAt { get; set; }
+    public DateTime? FinishedAt { get; set; }
+    public TimeSpan? Duration { get; set; }
     public string TestType { get; set; } = null!;  // optional: convert to enum
 
     public ICollection<TestResult> Results { get; set; } = new List<TestResult>();
