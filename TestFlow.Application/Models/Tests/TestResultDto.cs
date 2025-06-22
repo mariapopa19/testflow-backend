@@ -11,6 +11,7 @@ namespace TestFlow.Application.Models.Tests
         public Guid Id { get; set; }
         public string TestCaseType { get; set; } = null!;
         public string Input { get; set; } = null!;
+        public string? CalledUrl { get; set; }
         public List<int>? ExpectedStatusCode { get; set; } = new List<int>();
         public int ActualStatusCode { get; set; }
         public bool Passed { get; set; }

@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using TestFlow.Application.Interfaces.Repository;
 using TestFlow.Application.Interfaces.Services;
+using TestFlow.Application.Models.Responses;
 using TestFlow.Application.Models.Tests;
 using TestFlow.Application.Utils;
 using TestFlow.Domain.Entities;
@@ -165,7 +166,7 @@ namespace TestFlow.Application.Services
             }).ToList();
         }
 
-        public async Task<List<TestResultDto>> RunValidationTestsAsync(Guid endpointId, Guid userId, bool artificialInteligence)
+        public async Task<RunTestResponse> RunValidationTestsAsync(Guid endpointId, Guid userId, bool artificialInteligence)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
             if (endpoint == null)
@@ -244,10 +245,8 @@ namespace TestFlow.Application.Services
             foreach (var test in testCases)
             {
                 var method = new HttpMethod(endpoint.HttpMethod.ToUpper());
-                var request = new HttpRequestMessage(method, endpoint.Url)
-                {
-                    Content = new StringContent(test.Input, Encoding.UTF8, "application/json")
-                };
+                var urlToCall = !string.IsNullOrEmpty(test.CustomUrl) ? test.CustomUrl : endpoint.Url;
+                var request = new HttpRequestMessage(method, urlToCall);
 
                 if (!method.Method.Equals("GET", StringComparison.OrdinalIgnoreCase))
                 {
@@ -286,6 +285,7 @@ namespace TestFlow.Application.Services
                     StartedAt = startTime,
                     FinishedAt = endTime,
                     Duration = endTime - startTime,
+                    CalledUrl = urlToCall,
                     Outcome = passed ? "Pass" : "Fail",
                     Details = JsonSerializer.Serialize(new
                     {
@@ -309,7 +309,8 @@ namespace TestFlow.Application.Services
                     ActualStatusCode = (int)response.StatusCode,
                     Passed = passed,
                     ResponseBody = responseBody,
-                    Duration = testResult.Duration
+                    Duration = testResult.Duration,
+                    CalledUrl = urlToCall
                 });
             }
 
@@ -321,7 +322,11 @@ namespace TestFlow.Application.Services
             {
                 if (resultDtos.Count <= 0) throw new Exception("Result DTOs is empty.");
 
-                return resultDtos;
+                return new RunTestResponse
+                {
+                    TestRunId = testRun.Id,
+                    Results = resultDtos
+                };
             }
             catch (Exception ex)
             {
@@ -360,7 +365,8 @@ namespace TestFlow.Application.Services
                 Type = tc.Type,
                 Input = tc.Input,
                 ExpectedStatusCode = tc.ExpectedStatusCode,
-                ExpectedResponse = tc.ExpectedResponse
+                ExpectedResponse = tc.ExpectedResponse,
+                CustomUrl = tc.CustomUrl
             }).ToList();
         }
 
@@ -377,13 +383,39 @@ namespace TestFlow.Application.Services
 
             if (endpoint.HttpMethod.Equals("GET", StringComparison.OrdinalIgnoreCase))
             {
+                // Test 1: URL valid (fără parametri)
                 testCases.Add(new TestCase
                 {
                     Id = Guid.NewGuid(),
                     EndpointId = endpointId,
                     Type = "Fuzzy",
                     Input = string.Empty,
-                    ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Fuzzy", endpoint.HttpMethod, "Success"),
+                    ExpectedStatusCode = new List<int> { 200 },
+                    CustomUrl = endpoint.Url, // URL original
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                // Test 2: URL cu parametru random
+                testCases.Add(new TestCase
+                {
+                    Id = Guid.NewGuid(),
+                    EndpointId = endpointId,
+                    Type = "Fuzzy",
+                    Input = string.Empty,
+                    ExpectedStatusCode = new List<int> { 404, 500 },
+                    CustomUrl = endpoint.Url + "?randomparam=xyz",
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                // Test 3: URL distorsionat
+                testCases.Add(new TestCase
+                {
+                    Id = Guid.NewGuid(),
+                    EndpointId = endpointId,
+                    Type = "Fuzzy",
+                    Input = string.Empty,
+                    ExpectedStatusCode = new List<int> { 404, 500 },
+                    CustomUrl = endpoint.Url.TrimEnd('/') + "/invalidpath",
                     CreatedAt = DateTime.UtcNow
                 });
             }
@@ -448,13 +480,14 @@ namespace TestFlow.Application.Services
                 Type = tc.Type,
                 Input = tc.Input,
                 ExpectedStatusCode = tc.ExpectedStatusCode,
-                ExpectedResponse = tc.ExpectedResponse
+                ExpectedResponse = tc.ExpectedResponse,
+                CustomUrl = tc.CustomUrl
             }).ToList();
 
             return dtos.Count > 0 ? dtos : throw new InvalidOperationException("No test cases generated for Fuzzy tests.");
         }
 
-        public async Task<List<TestResultDto>> RunFuzzyTestsAsync(Guid endpointId, Guid userId, bool artificialInteligence)
+        public async Task<RunTestResponse> RunFuzzyTestsAsync(Guid endpointId, Guid userId, bool artificialInteligence)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
             if (endpoint == null)
@@ -514,7 +547,7 @@ namespace TestFlow.Application.Services
                 {
                     await _testCaseRepository.AddAsync(tc);
                 }
-
+                testCases = generated;
             }
             else
             {
@@ -539,7 +572,8 @@ namespace TestFlow.Application.Services
             foreach (var test in testCases ?? [])
             {
                 var method = new HttpMethod(endpoint.HttpMethod.ToUpper());
-                var request = new HttpRequestMessage(method, endpoint.Url);
+                var urlToCall = !string.IsNullOrEmpty(test.CustomUrl) ? test.CustomUrl : endpoint.Url;
+                var request = new HttpRequestMessage(method, urlToCall);
 
                 if (!method.Method.Equals("GET", StringComparison.OrdinalIgnoreCase))
                 {
@@ -576,6 +610,7 @@ namespace TestFlow.Application.Services
                     StartedAt = startTime,
                     FinishedAt = endTime,
                     Duration = endTime - startTime,
+                    CalledUrl = urlToCall,
                     Details = JsonSerializer.Serialize(new
                     {
                         TestCaseType = test.Type,
@@ -598,7 +633,8 @@ namespace TestFlow.Application.Services
                     ActualStatusCode = (int)response.StatusCode,
                     Passed = passed,
                     ResponseBody = responseBody,
-                    Duration = testResult.Duration
+                    Duration = testResult.Duration,
+                    CalledUrl = urlToCall
                 });
             }
 
@@ -610,7 +646,11 @@ namespace TestFlow.Application.Services
             {
                 if (resultDtos.Count <= 0) throw new Exception("Result DTOs is empty.");
 
-                return resultDtos;
+                return new RunTestResponse
+                {
+                    TestRunId = testRun.Id,
+                    Results = resultDtos
+                };
             }
             catch (Exception ex)
             {
@@ -695,6 +735,9 @@ namespace TestFlow.Application.Services
             // Save all test cases to DB
             foreach (var testCase in testCases)
             {
+                testCase.Id = Guid.NewGuid();
+                testCase.EndpointId = endpointId; // <-- Ensure this is set!
+                testCase.CreatedAt = DateTime.UtcNow;
                 await _testCaseRepository.AddAsync(testCase);
             }
 
@@ -710,7 +753,7 @@ namespace TestFlow.Application.Services
             return dtos;
         }
 
-        public async Task<List<TestResultDto>> RunFunctionalTestsAsync(Guid endpointId, Guid userId, bool artificialInteligence)
+        public async Task<RunTestResponse> RunFunctionalTestsAsync(Guid endpointId, Guid userId, bool artificialInteligence)
         {
             var endpoint = await _endpointRepository.GetByIdAsync(endpointId, userId);
             if (endpoint == null)
@@ -770,7 +813,7 @@ namespace TestFlow.Application.Services
                 {
                     await _testCaseRepository.AddAsync(tc);
                 }
-
+                testCases = generated;
             }
             else
             {
@@ -793,7 +836,8 @@ namespace TestFlow.Application.Services
             foreach (var test in testCases ?? [])
             {
                 var method = new HttpMethod(endpoint.HttpMethod.ToUpper());
-                var request = new HttpRequestMessage(method, endpoint.Url);
+                var urlToCall = !string.IsNullOrEmpty(test.CustomUrl) ? test.CustomUrl : endpoint.Url;
+                var request = new HttpRequestMessage(method, urlToCall);
 
                 if (!method.Method.Equals("GET", StringComparison.OrdinalIgnoreCase))
                 {
@@ -829,6 +873,7 @@ namespace TestFlow.Application.Services
                     StartedAt = startTime,
                     FinishedAt = endTime,
                     Duration = endTime - startTime,
+                    CalledUrl = urlToCall,
                     Details = JsonSerializer.Serialize(new
                     {
                         TestCaseType = test.Type,
@@ -859,7 +904,8 @@ namespace TestFlow.Application.Services
                     ActualStatusCode = (int)response.StatusCode,
                     Passed = passed,
                     ResponseBody = responseBody,
-                    Duration = testResult.Duration
+                    Duration = testResult.Duration,
+                    CalledUrl = urlToCall
                 });
             }
 
@@ -871,7 +917,11 @@ namespace TestFlow.Application.Services
             {
                 if (resultDtos.Count <= 0) throw new Exception("Result DTOs is empty.");
 
-                return resultDtos;
+                return new RunTestResponse
+                {
+                    TestRunId = testRun.Id,
+                    Results = resultDtos
+                };
             }
             catch (Exception ex)
             {

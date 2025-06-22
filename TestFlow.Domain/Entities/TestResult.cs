@@ -4,6 +4,7 @@ public class TestResult
     public Guid Id { get; set; }
     public Guid TestRunId { get; set; }
     public TestRun TestRun { get; set; } = null!;
+    public string? CalledUrl { get; set; }
 
     public Guid? TestCaseId { get; set; } // Nullable if some results may not be linked to a test case
     public TestCase? TestCase { get; set; }

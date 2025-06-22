@@ -5,6 +5,7 @@ public class TestCase
     public Guid Id { get; set; }
     public Guid EndpointId { get; set; }
     public Endpoint Endpoint { get; set; } = null!;
+    public string? CustomUrl { get; set; }
 
     public Guid? TestRunId { get; set; }
     public TestRun? TestRun { get; set; }

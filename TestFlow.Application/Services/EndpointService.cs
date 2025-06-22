@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+﻿using System.Net;
+using System.Text.Json;
+using Azure.Core;
 using TestFlow.Application.Interfaces.Repository;
 using TestFlow.Application.Interfaces.Services;
 using TestFlow.Application.Models.Requests;
@@ -25,7 +27,8 @@ public class EndpointService : IEndpointIService
             Url = e.Url,
             HttpMethod = e.HttpMethod,
             RequestBodyModel = e.RequestBodyModel,
-            ResponseBodyModel = e.ResponseBodyModel
+            ResponseBodyModel = e.ResponseBodyModel,
+            HeadersJson = e.HeadersJson != null ? JsonSerializer.Serialize(e.HeadersJson) : null
         }).ToList();
     }
 
@@ -79,7 +82,8 @@ public class EndpointService : IEndpointIService
             Url = endpoint.Url,
             HttpMethod = endpoint.HttpMethod,
             RequestBodyModel = endpoint.RequestBodyModel,
-            ResponseBodyModel = endpoint.ResponseBodyModel
+            ResponseBodyModel = endpoint.ResponseBodyModel,
+            HeadersJson = endpoint.HeadersJson != null ? JsonSerializer.Serialize(endpoint.HeadersJson) : null
         };
     }
 

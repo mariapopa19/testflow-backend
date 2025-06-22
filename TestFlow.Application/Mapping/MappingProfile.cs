@@ -35,8 +35,9 @@ namespace TestFlow.Application.Mapping
                     opt.MapFrom(src => src.Outcome == "Pass"))
                 .ForMember(dest => dest.ResponseBody, opt =>
                     opt.MapFrom(src => GetResponseBody(src.Details)))
+                .ForMember(dest => dest.CalledUrl, opt => opt.MapFrom(src => src.CalledUrl))
                 .ForMember(dest => dest.Duration, opt => opt.MapFrom(src => src.Duration));
-            
+
 
             // TestReport -> TestReportDto  
             CreateMap<TestReport, TestReportDto>()
