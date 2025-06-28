@@ -1,14 +1,53 @@
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS base
 WORKDIR /app
-EXPOSE 80
+EXPOSE 8080
+EXPOSE 8081
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
-COPY . .
+
+# Copy project files
+COPY ["TestFlow/TestFlow.API.csproj", "TestFlow/"]
+COPY ["TestFlow.Application/TestFlow.Application.csproj", "TestFlow.Application/"]
+COPY ["TestFlow.Infrastructure/TestFlow.Infrastructure.csproj", "TestFlow.Infrastructure/"]
+COPY ["TestFlow.Domain/TestFlow.Domain.csproj", "TestFlow.Domain/"]
+COPY ["TestFlow.Common/TestFlow.Common.csproj", "TestFlow.Common/"]
+
+# Restore dependencies
 RUN dotnet restore "TestFlow/TestFlow.API.csproj"
-RUN dotnet publish "TestFlow/TestFlow.API.csproj" -c Release -o /app/publish
+
+# Copy source code
+COPY . .
+
+# Install dotnet ef tool
+RUN dotnet tool install --global dotnet-ef
+ENV PATH="$PATH:/root/.dotnet/tools"
+
+# Build the application
+WORKDIR "/src/TestFlow"
+RUN dotnet build "TestFlow.API.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "TestFlow.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
-COPY --from=build /app/publish .
-ENTRYPOINT ["dotnet", "TestFlow.API.dll"]
+
+# Install dotnet ef tool in final stage
+RUN dotnet tool install --global dotnet-ef
+ENV PATH="$PATH:/root/.dotnet/tools"
+
+# Copy published app
+COPY --from=publish /app/publish .
+
+# Copy source code for EF migrations (THIS WAS MISSING!)
+COPY --from=build /src /src
+
+# Set working directory to where project files are
+WORKDIR /src/TestFlow
+
+# Copy entrypoint script
+COPY TestFlow/entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
+ENTRYPOINT ["./entrypoint.sh"]

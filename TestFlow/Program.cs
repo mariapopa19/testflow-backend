@@ -16,7 +16,8 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "https://localhost:5173", "http://localhost:5174", "https://localhost:5174")
+        policy.WithOrigins("http://localhost:5173", "https://localhost:5173", "http://localhost:5174", "https://localhost:5174", "http://localhost:7049",
+                "https://localhost:7049",  "http://frontend:5173", "https://frontend:5173", "http://localhost:7050", "https://localhost:7050")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -140,6 +141,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
 
 app.Run();
