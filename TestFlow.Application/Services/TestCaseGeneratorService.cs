@@ -55,6 +55,7 @@ namespace TestFlow.Application.Services
 
             if (endpoint.HttpMethod.Equals("GET", StringComparison.OrdinalIgnoreCase))
             {
+                // Test 1: Basic valid GET request
                 testCases.Add(new TestCase
                 {
                     Id = Guid.NewGuid(),
@@ -65,9 +66,34 @@ namespace TestFlow.Application.Services
                     ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "Success"),
                     CreatedAt = DateTime.UtcNow
                 });
+
+                // Test 2: GET with invalid query parameter
+                testCases.Add(new TestCase
+                {
+                    Id = Guid.NewGuid(),
+                    EndpointId = endpointId,
+                    Type = "Validation",
+                    Input = string.Empty,
+                    CustomUrl = endpoint.Url + "?invalidParam=test",
+                    ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "ClientError"),
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                // Test 3: GET with malformed query
+                testCases.Add(new TestCase
+                {
+                    Id = Guid.NewGuid(),
+                    EndpointId = endpointId,
+                    Type = "Validation",
+                    Input = string.Empty,
+                    CustomUrl = endpoint.Url + "?id=",
+                    ExpectedStatusCode = ExpectedStatusCodeProvider.GetExpectedStatusCodes("Validation", endpoint.HttpMethod, "ClientError"),
+                    CreatedAt = DateTime.UtcNow
+                });
             }
             else
             {
+                // Keep your existing logic for non-GET methods
                 var model = JsonDocument.Parse(endpoint.RequestBodyModel).RootElement;
                 var validInput = TestDataFaker.GenerateValidInput(model);
 
@@ -120,13 +146,14 @@ namespace TestFlow.Application.Services
                 await _testCaseRepository.AddAsync(testCase);
             }
 
-            // Map to DTOs
+            // Map to DTOs - INCLUDE CustomUrl here!
             var dtos = testCases.Select(tc => new TestCaseDto
             {
                 Type = tc.Type,
                 Input = tc.Input,
                 ExpectedStatusCode = tc.ExpectedStatusCode,
-                ExpectedResponse = tc.ExpectedResponse
+                ExpectedResponse = tc.ExpectedResponse,
+                CustomUrl = tc.CustomUrl // ← ADD THIS LINE
             }).ToList();
 
             return dtos;
@@ -142,9 +169,7 @@ namespace TestFlow.Application.Services
             }
 
             var prompt = AIResponseHelper.GenerateAIPrompt("validation", endpoint);
-
             var rawJson = await _aiClientService.GetPromptResponseAsync(prompt);
-
             var testCases = AIResponseHelper.ExtractTestCasesFromRaw(rawJson!, "Validation");
 
             // Save to DB
@@ -162,7 +187,8 @@ namespace TestFlow.Application.Services
                 Type = tc.Type,
                 Input = tc.Input,
                 ExpectedStatusCode = tc.ExpectedStatusCode,
-                ExpectedResponse = tc.ExpectedResponse
+                ExpectedResponse = tc.ExpectedResponse,
+                CustomUrl = tc.CustomUrl // Include CustomUrl in DTO
             }).ToList();
         }
 
@@ -203,6 +229,7 @@ namespace TestFlow.Application.Services
                             Input = dto.Input,
                             ExpectedStatusCode = dto.ExpectedStatusCode,
                             ExpectedResponse = dto.ExpectedResponse,
+                            CustomUrl = dto.CustomUrl,
                             CreatedAt = DateTime.UtcNow,
                             TestRunId = testRun.Id
                         }).ToList();
@@ -218,6 +245,7 @@ namespace TestFlow.Application.Services
                             Input = dto.Input,
                             ExpectedStatusCode = dto.ExpectedStatusCode,
                             ExpectedResponse = dto.ExpectedResponse,
+                            CustomUrl = dto.CustomUrl,
                             CreatedAt = DateTime.UtcNow,
                             TestRunId = testRun.Id
                         }).ToList();
@@ -524,6 +552,7 @@ namespace TestFlow.Application.Services
                             Input = dto.Input,
                             ExpectedStatusCode = dto.ExpectedStatusCode,
                             ExpectedResponse = dto.ExpectedResponse,
+                            CustomUrl = dto.CustomUrl,
                             CreatedAt = DateTime.UtcNow,
                             TestRunId = testRun.Id
                         }).ToList();
@@ -539,6 +568,7 @@ namespace TestFlow.Application.Services
                             Input = dto.Input,
                             ExpectedStatusCode = dto.ExpectedStatusCode,
                             ExpectedResponse = dto.ExpectedResponse,
+                            CustomUrl = dto.CustomUrl,
                             CreatedAt = DateTime.UtcNow,
                             TestRunId = testRun.Id
                         }).ToList();
@@ -706,13 +736,14 @@ namespace TestFlow.Application.Services
                 await _testCaseRepository.AddAsync(testCase);
             }
 
-            // Map to DTOs
+            // Map to DTOs - INCLUDE CustomUrl here!
             var dtos = testCases.Select(tc => new TestCaseDto
             {
                 Type = tc.Type,
                 Input = tc.Input,
                 ExpectedStatusCode = tc.ExpectedStatusCode,
-                ExpectedResponse = tc.ExpectedResponse
+                ExpectedResponse = tc.ExpectedResponse,
+                CustomUrl = tc.CustomUrl // ← ADD THIS LINE
             }).ToList();
 
             return dtos;
@@ -728,15 +759,14 @@ namespace TestFlow.Application.Services
             }
 
             var prompt = AIResponseHelper.GenerateAIPrompt("functional", endpoint);
-
             var rawJson = await _aiClientService.GetPromptResponseAsync(prompt);
-
             var testCases = AIResponseHelper.ExtractTestCasesFromRaw(rawJson!, "Functional");
+
             // Save all test cases to DB
             foreach (var testCase in testCases)
             {
                 testCase.Id = Guid.NewGuid();
-                testCase.EndpointId = endpointId; // <-- Ensure this is set!
+                testCase.EndpointId = endpointId;
                 testCase.CreatedAt = DateTime.UtcNow;
                 await _testCaseRepository.AddAsync(testCase);
             }
@@ -747,7 +777,8 @@ namespace TestFlow.Application.Services
                 Type = tc.Type,
                 Input = tc.Input,
                 ExpectedStatusCode = tc.ExpectedStatusCode,
-                ExpectedResponse = tc.ExpectedResponse
+                ExpectedResponse = tc.ExpectedResponse,
+                CustomUrl = tc.CustomUrl // Include CustomUrl in DTO
             }).ToList();
 
             return dtos;
@@ -790,6 +821,7 @@ namespace TestFlow.Application.Services
                             Input = dto.Input,
                             ExpectedStatusCode = dto.ExpectedStatusCode,
                             ExpectedResponse = dto.ExpectedResponse,
+                            CustomUrl = dto.CustomUrl,
                             CreatedAt = DateTime.UtcNow,
                             TestRunId = testRun.Id
                         }).ToList();
@@ -805,6 +837,7 @@ namespace TestFlow.Application.Services
                             Input = dto.Input,
                             ExpectedStatusCode = dto.ExpectedStatusCode,
                             ExpectedResponse = dto.ExpectedResponse,
+                            CustomUrl = dto.CustomUrl,
                             CreatedAt = DateTime.UtcNow,
                             TestRunId = testRun.Id
                         }).ToList();

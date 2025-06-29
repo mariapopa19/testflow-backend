@@ -41,7 +41,7 @@ public class ApplicationDbContext : DbContext
             .HasMany(e => e.TestRuns)
             .WithOne(tr => tr.Endpoint)
             .HasForeignKey(tr => tr.EndpointId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<TestRun>()
             .HasMany(tr => tr.Results)
@@ -59,7 +59,7 @@ public class ApplicationDbContext : DbContext
             .HasOne(tc => tc.Endpoint)
             .WithMany(e => e.TestCases)
             .HasForeignKey(tc => tc.EndpointId)
-            .OnDelete(DeleteBehavior.Restrict); // or .NoAction
+            .OnDelete(DeleteBehavior.Cascade); 
 
         modelBuilder.Entity<TestCase>()
             .HasOne(tc => tc.TestRun)

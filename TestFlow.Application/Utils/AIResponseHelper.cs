@@ -36,11 +36,19 @@ namespace TestFlow.Application.Utils
                             }
                         }
 
+                        // Extract CustomUrl if present (for GET methods with query params)
+                        string? customUrl = null;
+                        if (element.TryGetProperty("CustomUrl", out var customUrlProp))
+                        {
+                            customUrl = customUrlProp.GetString();
+                        }
+
                         cases.Add(new TestCase
                         {
                             Type = testType,
-                            Input = Regex.Unescape(input ?? string.Empty),
-                            ExpectedStatusCode = expectedCodes
+                            Input = input == "null" ? string.Empty : Regex.Unescape(input ?? string.Empty),
+                            ExpectedStatusCode = expectedCodes,
+                            CustomUrl = customUrl
                         });
                     }
                 }
@@ -57,35 +65,42 @@ namespace TestFlow.Application.Utils
         {
             var method = endpoint.HttpMethod.ToUpperInvariant();
 
-
             return method switch
             {
                 "GET" => $"Generate 3 {testType} test cases for the GET method at URL: {endpoint.Url}. " +
-                         "Each test case must be an object with \"Input\" (as a JSON string representing query parameters or path variables, or empty if none) and \"ExpectedStatusCode\" (as an array of numbers, e.g. [200, 404]). " +
+                         "For GET requests, DO NOT generate request body data. Instead, focus on URL variations and query parameters. " +
+                         "Each test case must be an object with \"Input\" (always empty string for GET), \"ExpectedStatusCode\" (as an array of numbers), and optionally \"CustomUrl\" (for testing with different URL variations). " +
+                         "Use CustomUrl to test different scenarios like adding query parameters, invalid paths, or malformed URLs. " +
                          "Return ONLY a valid JSON array, with no explanations, labels, or extra text. Example:\n" +
                          "[\n" +
-                         "  {{ \"Input\": \"null\", \"ExpectedStatusCode\": [200, 201] }},\n" +
-                         "  {{ \"Input\": \"{{\\\"id\\\":\\\"nonexistent\\\"}}\", \"ExpectedStatusCode\": [404, 400] }}\n" +
+                         "  {{ \"Input\": \"\", \"ExpectedStatusCode\": [200], \"CustomUrl\": null }},\n" +
+                         "  {{ \"Input\": \"\", \"ExpectedStatusCode\": [400, 404], \"CustomUrl\": \"{endpoint.Url}?invalidParam=test\" }},\n" +
+                         "  {{ \"Input\": \"\", \"ExpectedStatusCode\": [404], \"CustomUrl\": \"{endpoint.Url}/nonexistent\" }}\n" +
                          "]",
+
                 "DELETE" => $"Generate 3 {testType} test cases for the DELETE method at URL: {endpoint.Url}. " +
-                            "Each test case must be an object with \"Input\" (as a JSON string representing path variables or query parameters, or empty if none) and \"ExpectedStatusCode\" (as an array of numbers, e.g. [200, 404]). " +
+                            "For DELETE requests, typically no request body is needed. Focus on URL variations and path parameters. " +
+                            "Each test case must be an object with \"Input\" (empty string for most DELETE requests), \"ExpectedStatusCode\" (as an array of numbers), and optionally \"CustomUrl\" (for testing with different URL variations). " +
                             "Return ONLY a valid JSON array, with no explanations, labels, or extra text. Example:\n" +
                             "[\n" +
-                            "  {{ \"Input\": \"null\", \"ExpectedStatusCode\": [204, 201, 200] }},\n" +
-                            "  {{ \"Input\": \"{{\\\"id\\\":\\\"invalid\\\"}}\", \"ExpectedStatusCode\": [404, 400] }}\n" +
+                            "  {{ \"Input\": \"\", \"ExpectedStatusCode\": [200, 204], \"CustomUrl\": null }},\n" +
+                            "  {{ \"Input\": \"\", \"ExpectedStatusCode\": [404, 400], \"CustomUrl\": \"{endpoint.Url}/invalidid\" }}\n" +
                             "]",
-                "POST" or "PUT" or "PATCH" => $"Generate 3 {testType} test cases for the {method} method and for the following JSON model: {endpoint.RequestBodyModel}. " +
-                            "Each test case must be an object with \"Input\" (as a JSON string) and \"ExpectedStatusCode\" (as an array of numbers, e.g. [200, 201]). " +
+
+                "POST" or "PUT" or "PATCH" => $"Generate 3 {testType} test cases for the {method} method using the following JSON model: {endpoint.RequestBodyModel}. " +
+                            "Each test case must be an object with \"Input\" (as a JSON string representing the request body) and \"ExpectedStatusCode\" (as an array of numbers). " +
+                            "Create variations like valid data, invalid data, missing fields, wrong data types, etc. " +
                             "Return ONLY a valid JSON array, with no explanations, labels, or extra text. Example:\n" +
                             "[\n" +
-                            "  {{ \"Input\": \"{{\\\"name\\\":\\\"morpheus\\\",\\\"job\\\":\\\"captain\\\"}}\", \"ExpectedStatusCode\": [400, 404] }},\n" +
-                            "  {{ \"Input\": \"{{\\\"name\\\":\\\"morfeus\\\",\\\"job\\\":\\\"leader\\\"}}\", \"ExpectedStatusCode\": [200, 201] }}\n" +
+                            "  {{ \"Input\": \"{{\\\"name\\\":\\\"validName\\\",\\\"email\\\":\\\"test@example.com\\\"}}\", \"ExpectedStatusCode\": [200, 201] }},\n" +
+                            "  {{ \"Input\": \"{{\\\"name\\\":\\\"\\\",\\\"email\\\":\\\"invalid-email\\\"}}\", \"ExpectedStatusCode\": [400, 422] }},\n" +
+                            "  {{ \"Input\": \"{{\\\"name\\\":\\\"test\\\"}}\", \"ExpectedStatusCode\": [400] }}\n" +
                             "]",
+
                 _ => $"Generate 3 {testType} test cases for the {method} method. " +
                      "Each test case must be an object with \"Input\" (as a JSON string) and \"ExpectedStatusCode\" (as an array of numbers). " +
                      "Return ONLY a valid JSON array."
             };
-
         }
     }
 }

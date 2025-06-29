@@ -42,8 +42,62 @@ public class EndpointRepository : IEndpointRepository
 
     public async Task DeleteAsync(Endpoint endpoint)
     {
-        _context.Endpoints.Remove(endpoint);
-        await _context.SaveChangesAsync();
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            // Get all TestRuns for this endpoint
+            var testRuns = await _context.TestRuns
+                .Where(tr => tr.EndpointId == endpoint.Id)
+                .ToListAsync();
+
+            if (testRuns.Any())
+            {
+                var testRunIds = testRuns.Select(tr => tr.Id).ToList();
+
+                // 1. First, delete TestReports (they reference TestRuns with Restrict)
+                var testReports = await _context.TestReports
+                    .Where(tr => testRunIds.Contains(tr.TestRunId))
+                    .ToListAsync();
+
+                if (testReports.Any())
+                {
+                    _context.TestReports.RemoveRange(testReports);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 2. Delete TestCases for this endpoint (they reference Endpoint directly)
+                var testCases = await _context.TestCases
+                    .Where(tc => tc.EndpointId == endpoint.Id)
+                    .ToListAsync();
+
+                if (testCases.Any())
+                {
+                    _context.TestCases.RemoveRange(testCases);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 3. Now delete TestRuns (this will cascade delete TestResults and FuzzRules)
+                _context.TestRuns.RemoveRange(testRuns);
+                await _context.SaveChangesAsync();
+            }
+
+            // 4. Finally, delete the endpoint
+            _context.Endpoints.Remove(endpoint);
+            await _context.SaveChangesAsync();
+
+            await transaction.CommitAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            await transaction.RollbackAsync();
+
+            // Log the exception details
+            Console.WriteLine($"DbUpdateException: {ex.Message}");
+            if (ex.InnerException != null)
+                Console.WriteLine($"InnerException: {ex.InnerException.Message}");
+
+            throw;
+        }
     }
 
     public async Task<bool> UpdateEndpointAsync(Guid id, UpdateEndpointRequest request)
